@@ -17,9 +17,6 @@ coverage.html
 /bin/
 /vendor/
 
-# Dependency directories
-go.sum
-
 # IDE directories
 .vscode/
 .idea/
