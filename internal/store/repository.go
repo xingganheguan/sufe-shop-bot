@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	ErrNoStock = errors.New("no available codes in stock")
+	ErrNoStock     = errors.New("no available codes in stock")
 	ErrClaimFailed = errors.New("failed to claim code")
 )
 
@@ -27,7 +27,7 @@ func CountAvailableCodes(db *gorm.DB, productID uint) (int64, error) {
 // ClaimOneCodeTx claims one available code for an order with concurrency safety
 func ClaimOneCodeTx(ctx context.Context, db *gorm.DB, productID uint, orderID uint) (string, error) {
 	var claimedCode string
-	
+
 	err := db.Transaction(func(tx *gorm.DB) error {
 		if IsPostgres(db) {
 			// PostgreSQL: Use FOR UPDATE SKIP LOCKED for better concurrency
@@ -38,29 +38,29 @@ func ClaimOneCodeTx(ctx context.Context, db *gorm.DB, productID uint, orderID ui
 				LIMIT 1 
 				FOR UPDATE SKIP LOCKED
 			`, productID).Scan(&code).Error
-			
+
 			if err != nil {
 				if err == gorm.ErrRecordNotFound {
 					return ErrNoStock
 				}
 				return err
 			}
-			
+
 			// Update the code as sold
 			result := tx.Model(&Code{}).
 				Where("id = ?", code.ID).
 				Updates(map[string]interface{}{
-					"is_sold": true,
-					"sold_at": gorm.Expr("NOW()"),
+					"is_sold":  true,
+					"sold_at":  gorm.Expr("NOW()"),
 					"order_id": orderID,
 				})
-				
+
 			if result.Error != nil {
 				return result.Error
 			}
-			
+
 			claimedCode = code.Code
-			
+
 		} else {
 			// SQLite: Use UPDATE with LIMIT and check affected rows
 			result := tx.Exec(`
@@ -72,32 +72,32 @@ func ClaimOneCodeTx(ctx context.Context, db *gorm.DB, productID uint, orderID ui
 					LIMIT 1
 				)
 			`, orderID, productID)
-			
+
 			if result.Error != nil {
 				return result.Error
 			}
-			
+
 			if result.RowsAffected == 0 {
 				return ErrNoStock
 			}
-			
+
 			// Fetch the claimed code
 			var code Code
 			err := tx.Where("order_id = ?", orderID).First(&code).Error
 			if err != nil {
 				return fmt.Errorf("failed to fetch claimed code: %w", err)
 			}
-			
+
 			claimedCode = code.Code
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		return "", err
 	}
-	
+
 	return claimedCode, nil
 }
 
@@ -118,54 +118,54 @@ func GetActiveProducts(db *gorm.DB) ([]Product, error) {
 // GetOrCreateUser gets existing user or creates new one
 func GetOrCreateUser(db *gorm.DB, tgUserID int64, username string) (*User, error) {
 	var user User
-	
+
 	err := db.Where("tg_user_id = ?", tgUserID).First(&user).Error
 	if err == nil {
 		return &user, nil
 	}
-	
+
 	if err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
-	
+
 	// Create new user
 	user = User{
 		TgUserID: tgUserID,
 		Username: username,
 		Language: "zh",
 	}
-	
+
 	if err := db.Create(&user).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return &user, nil
 }
 
 // GetOrCreateUserWithStatus gets existing user or creates new one, returning if user was created
 func GetOrCreateUserWithStatus(db *gorm.DB, tgUserID int64, username string) (*User, bool, error) {
 	var user User
-	
+
 	err := db.Where("tg_user_id = ?", tgUserID).First(&user).Error
 	if err == nil {
 		return &user, false, nil
 	}
-	
+
 	if err != gorm.ErrRecordNotFound {
 		return nil, false, err
 	}
-	
+
 	// Create new user
 	user = User{
 		TgUserID: tgUserID,
 		Username: username,
 		Language: "zh",
 	}
-	
+
 	if err := db.Create(&user).Error; err != nil {
 		return nil, false, err
 	}
-	
+
 	return &user, true, nil
 }
 
@@ -173,7 +173,7 @@ func GetOrCreateUserWithStatus(db *gorm.DB, tgUserID int64, username string) (*U
 func CreateOrder(db *gorm.DB, userID, productID uint, amountCents int) (*Order, error) {
 	// Generate unique out_trade_no at creation time
 	tempID := fmt.Sprintf("%d-%d-%d", userID, productID, time.Now().UnixNano())
-	
+
 	order := &Order{
 		UserID:         userID,
 		ProductID:      &productID,
@@ -182,28 +182,28 @@ func CreateOrder(db *gorm.DB, userID, productID uint, amountCents int) (*Order, 
 		Status:         "pending",
 		EpayOutTradeNo: tempID, // Temporary unique ID, will be updated when payment is initiated
 	}
-	
+
 	if err := db.Create(order).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return order, nil
 }
 
 // CreateOrderWithBalance creates an order with balance deduction
 func CreateOrderWithBalance(db *gorm.DB, userID, productID uint, amountCents int, useBalance bool) (*Order, error) {
 	var order *Order
-	
+
 	err := db.Transaction(func(tx *gorm.DB) error {
 		// Get user balance
 		var user User
 		if err := tx.First(&user, userID).Error; err != nil {
 			return err
 		}
-		
+
 		balanceUsed := 0
 		paymentAmount := amountCents
-		
+
 		if useBalance && user.BalanceCents > 0 {
 			// Calculate how much balance can be used
 			if user.BalanceCents >= amountCents {
@@ -214,11 +214,11 @@ func CreateOrderWithBalance(db *gorm.DB, userID, productID uint, amountCents int
 				paymentAmount = amountCents - user.BalanceCents
 			}
 		}
-		
+
 		// Create order
 		// Generate unique out_trade_no at creation time
 		tempID := fmt.Sprintf("%d-%d-%d", userID, productID, time.Now().UnixNano())
-		
+
 		order = &Order{
 			UserID:         userID,
 			ProductID:      &productID,
@@ -228,18 +228,18 @@ func CreateOrderWithBalance(db *gorm.DB, userID, productID uint, amountCents int
 			Status:         "pending",
 			EpayOutTradeNo: tempID, // Temporary unique ID, will be updated when payment is initiated
 		}
-		
+
 		if err := tx.Create(order).Error; err != nil {
 			return err
 		}
-		
+
 		// If using balance, deduct it immediately
 		if balanceUsed > 0 {
-			if err := AddBalance(tx, userID, -balanceUsed, "purchase", 
+			if err := AddBalance(tx, userID, -balanceUsed, "purchase",
 				fmt.Sprintf("Order #%d", order.ID), nil, &order.ID); err != nil {
 				return err
 			}
-			
+
 			// If payment amount is 0, mark order as paid
 			if paymentAmount == 0 {
 				order.Status = "paid"
@@ -250,14 +250,14 @@ func CreateOrderWithBalance(db *gorm.DB, userID, productID uint, amountCents int
 				}
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return order, nil
 }
 
@@ -265,7 +265,7 @@ func CreateOrderWithBalance(db *gorm.DB, userID, productID uint, amountCents int
 func CreateDepositOrder(db *gorm.DB, userID uint, amountCents int) (*Order, error) {
 	// Generate unique out_trade_no at creation time
 	tempID := fmt.Sprintf("DEPOSIT-%d-%d", userID, time.Now().UnixNano())
-	
+
 	order := &Order{
 		UserID:         userID,
 		ProductID:      nil, // No product for deposit orders
@@ -275,16 +275,16 @@ func CreateDepositOrder(db *gorm.DB, userID uint, amountCents int) (*Order, erro
 		Status:         "pending",
 		EpayOutTradeNo: tempID, // Temporary unique ID, will be updated when payment is initiated
 	}
-	
+
 	if err := db.Create(order).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Load associations
 	if err := db.Preload("User").First(order, order.ID).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return order, nil
 }
 
@@ -305,7 +305,7 @@ func GetSystemSetting(db *gorm.DB, key string) (string, error) {
 func SetSystemSetting(db *gorm.DB, key, value string) error {
 	var setting SystemSetting
 	err := db.Where("key = ?", key).First(&setting).Error
-	
+
 	if err == gorm.ErrRecordNotFound {
 		// Create new setting
 		setting = SystemSetting{
@@ -314,11 +314,11 @@ func SetSystemSetting(db *gorm.DB, key, value string) error {
 		}
 		return db.Create(&setting).Error
 	}
-	
+
 	if err != nil {
 		return err
 	}
-	
+
 	// Update existing setting
 	return db.Model(&setting).Update("value", value).Error
 }
@@ -334,7 +334,7 @@ func GetCurrencySettings(db *gorm.DB, config *config.Config) (currency string, s
 			symbol = sym
 		}
 	}
-	
+
 	// Fall back to config if not in database
 	if currency == "" && config != nil {
 		currency = config.Currency
@@ -342,7 +342,7 @@ func GetCurrencySettings(db *gorm.DB, config *config.Config) (currency string, s
 	if symbol == "" && config != nil {
 		symbol = config.CurrencySymbol
 	}
-	
+
 	// Default values
 	if currency == "" {
 		currency = "CNY"
@@ -373,11 +373,11 @@ func InitializeAdminsFromConfig(db *gorm.DB, cfg *config.Config) error {
 		if err == gorm.ErrRecordNotFound {
 			// Create new admin user
 			adminUser = AdminUser{
-				Username:            username,
-				Password:            "", // Password will be set via web interface
-				TelegramID:          &telegramID,
+				Username:             username,
+				Password:             "", // Password will be set via web interface
+				TelegramID:           &telegramID,
 				ReceiveNotifications: true,
-				IsActive:            true,
+				IsActive:             true,
 			}
 
 			// Check if username already exists

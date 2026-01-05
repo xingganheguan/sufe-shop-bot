@@ -2,8 +2,8 @@ package store
 
 import (
 	"fmt"
-	logger "shop-bot/internal/log"
 	"gorm.io/gorm"
+	logger "shop-bot/internal/log"
 )
 
 // SeedData creates initial test data if database is empty
@@ -13,14 +13,14 @@ func SeedData(db *gorm.DB) error {
 	if err := db.Model(&Product{}).Count(&count).Error; err != nil {
 		return err
 	}
-	
+
 	if count > 0 {
 		logger.Info("Database already has products, skipping seed")
 		return nil
 	}
-	
+
 	logger.Info("Seeding database with test data")
-	
+
 	// Create test products
 	products := []Product{
 		{
@@ -34,21 +34,21 @@ func SeedData(db *gorm.DB) error {
 			IsActive:   true,
 		},
 	}
-	
+
 	for _, p := range products {
 		if err := db.Create(&p).Error; err != nil {
 			return fmt.Errorf("failed to create product %s: %w", p.Name, err)
 		}
-		
+
 		// Create test codes for each product
 		codes := generateTestCodes(p.ID, 10)
 		if err := db.Create(&codes).Error; err != nil {
 			return fmt.Errorf("failed to create codes for product %s: %w", p.Name, err)
 		}
-		
+
 		logger.Info("Created product with codes", "product", p.Name, "codes", len(codes))
 	}
-	
+
 	return nil
 }
 

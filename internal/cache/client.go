@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	
+
 	logger "shop-bot/internal/log"
 )
 
@@ -29,17 +29,17 @@ func NewClient(redisURL string) (*Client, error) {
 	}
 
 	client := redis.NewClient(opt)
-	
+
 	// Test connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if err := client.Ping(ctx).Err(); err != nil {
 		return nil, fmt.Errorf("failed to connect to redis: %w", err)
 	}
 
 	logger.Info("Connected to Redis cache")
-	
+
 	return &Client{
 		redis:  client,
 		prefix: "shopbot:",
@@ -96,19 +96,19 @@ func (c *Client) DeletePattern(ctx context.Context, pattern string) error {
 
 	iter := c.redis.Scan(ctx, 0, c.prefix+pattern, 0).Iterator()
 	var keys []string
-	
+
 	for iter.Next(ctx) {
 		keys = append(keys, iter.Val())
 	}
-	
+
 	if err := iter.Err(); err != nil {
 		return err
 	}
-	
+
 	if len(keys) > 0 {
 		return c.redis.Del(ctx, keys...).Err()
 	}
-	
+
 	return nil
 }
 
@@ -122,16 +122,16 @@ func (c *Client) Close() error {
 
 // Cache keys
 const (
-	KeyUserPrefix     = "user:"
-	KeyProductPrefix  = "product:"
-	KeyProductList    = "products:list"
-	KeyStockPrefix    = "stock:"
-	KeyGroupPrefix    = "group:"
-	KeyActiveGroups   = "groups:active"
-	CacheTTLUser      = 5 * time.Minute
-	CacheTTLProduct   = 10 * time.Minute
-	CacheTTLStock     = 1 * time.Minute
-	CacheTTLGroup     = 5 * time.Minute
+	KeyUserPrefix    = "user:"
+	KeyProductPrefix = "product:"
+	KeyProductList   = "products:list"
+	KeyStockPrefix   = "stock:"
+	KeyGroupPrefix   = "group:"
+	KeyActiveGroups  = "groups:active"
+	CacheTTLUser     = 5 * time.Minute
+	CacheTTLProduct  = 10 * time.Minute
+	CacheTTLStock    = 1 * time.Minute
+	CacheTTLGroup    = 5 * time.Minute
 )
 
 // GetUserKey returns cache key for user

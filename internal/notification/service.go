@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gorm.io/gorm"
-	
+
 	"shop-bot/internal/config"
 	logger "shop-bot/internal/log"
 	"shop-bot/internal/store"
@@ -17,13 +17,13 @@ import (
 type EventType string
 
 const (
-	EventNewOrder       EventType = "new_order"
-	EventOrderPaid      EventType = "order_paid"
-	EventNoStock        EventType = "no_stock"
-	EventDeposit        EventType = "deposit"
-	EventRechargeUsed   EventType = "recharge_used"
-	EventLowStock       EventType = "low_stock"
-	EventNewUser        EventType = "new_user"
+	EventNewOrder     EventType = "new_order"
+	EventOrderPaid    EventType = "order_paid"
+	EventNoStock      EventType = "no_stock"
+	EventDeposit      EventType = "deposit"
+	EventRechargeUsed EventType = "recharge_used"
+	EventLowStock     EventType = "low_stock"
+	EventNewUser      EventType = "new_user"
 )
 
 // Service handles admin notifications
@@ -43,13 +43,13 @@ func NewService(bot *tgbotapi.BotAPI, config *config.Config, db *gorm.DB) *Servi
 		db:       db,
 		channels: make(map[string]Channel),
 	}
-	
+
 	// Register Telegram channel
 	if bot != nil {
 		telegramChannel := NewTelegramChannel(bot, config)
 		service.channels["telegram"] = telegramChannel
 	}
-	
+
 	// Initialize queue if async notifications are enabled
 	if config.AdminNotifications {
 		notifConfig := &NotificationConfig{
@@ -64,7 +64,7 @@ func NewService(bot *tgbotapi.BotAPI, config *config.Config, db *gorm.DB) *Servi
 		queue.Process() // Start processing queue
 		service.queue = queue
 	}
-	
+
 	return service
 }
 
@@ -74,13 +74,13 @@ func (s *Service) NotifyAdmins(eventType EventType, data map[string]interface{})
 	if !s.config.AdminNotifications {
 		return
 	}
-	
+
 	// If queue is available, use async notification
 	if s.queue != nil {
 		s.NotifyAdminsAsync(eventType, data, PriorityMedium)
 		return
 	}
-	
+
 	// Otherwise send synchronously (legacy behavior)
 	s.sendNotification(eventType, data)
 }
@@ -92,13 +92,13 @@ func (s *Service) NotifyAdminsAsync(eventType EventType, data map[string]interfa
 		s.sendNotification(eventType, data)
 		return
 	}
-	
+
 	notification := &Notification{
 		Type:     eventType,
 		Priority: priority,
 		Data:     data,
 	}
-	
+
 	if err := s.queue.Push(notification); err != nil {
 		logger.Error("Failed to queue notification", "error", err)
 		// Fallback to sync sending
@@ -108,24 +108,24 @@ func (s *Service) NotifyAdminsAsync(eventType EventType, data map[string]interfa
 
 // sendNotification sends the actual notification (extracted for reuse)
 func (s *Service) sendNotification(eventType EventType, data map[string]interface{}) {
-	
+
 	// Get admin IDs
 	adminIDs := s.config.GetAdminTelegramIDs()
 	if len(adminIDs) == 0 {
 		return
 	}
-	
+
 	// Build message based on event type
 	message := s.buildMessage(eventType, data)
 	if message == "" {
 		return
 	}
-	
+
 	// Send to each admin
 	for _, adminID := range adminIDs {
 		msg := tgbotapi.NewMessage(adminID, message)
 		msg.ParseMode = "Markdown"
-		
+
 		if _, err := s.bot.Send(msg); err != nil {
 			logger.Error("Failed to send admin notification",
 				"admin_id", adminID,
@@ -164,7 +164,7 @@ func (s *Service) buildNewOrderMessage(data map[string]interface{}) string {
 	userID, _ := data["user_id"].(uint)
 	productName, _ := data["product_name"].(string)
 	amount, _ := data["amount"].(int)
-	
+
 	var user store.User
 	if err := s.db.First(&user, userID).Error; err == nil {
 		username := getUserDisplayName(&user)
@@ -182,7 +182,7 @@ func (s *Service) buildNewOrderMessage(data map[string]interface{}) string {
 			time.Now().Format("2006-01-02 15:04:05"),
 		)
 	}
-	
+
 	return ""
 }
 
@@ -193,7 +193,7 @@ func (s *Service) buildOrderPaidMessage(data map[string]interface{}) string {
 	productName, _ := data["product_name"].(string)
 	amount, _ := data["amount"].(int)
 	paymentMethod, _ := data["payment_method"].(string)
-	
+
 	var user store.User
 	if err := s.db.First(&user, userID).Error; err == nil {
 		username := getUserDisplayName(&user)
@@ -213,7 +213,7 @@ func (s *Service) buildOrderPaidMessage(data map[string]interface{}) string {
 			time.Now().Format("2006-01-02 15:04:05"),
 		)
 	}
-	
+
 	return ""
 }
 
@@ -222,11 +222,11 @@ func (s *Service) buildNoStockMessage(data map[string]interface{}) string {
 	orderID, _ := data["order_id"].(uint)
 	productID, _ := data["product_id"].(uint)
 	productName, _ := data["product_name"].(string)
-	
+
 	// Get current stock count
 	var stockCount int64
 	s.db.Model(&store.Code{}).Where("product_id = ? AND status = 'available'", productID).Count(&stockCount)
-	
+
 	return fmt.Sprintf(
 		"⚠️ *商品缺货警告*\n\n"+
 			"订单号: #%d\n"+
@@ -245,7 +245,7 @@ func (s *Service) buildDepositMessage(data map[string]interface{}) string {
 	userID, _ := data["user_id"].(uint)
 	amount, _ := data["amount"].(int)
 	newBalance, _ := data["new_balance"].(int)
-	
+
 	var user store.User
 	if err := s.db.First(&user, userID).Error; err == nil {
 		username := getUserDisplayName(&user)
@@ -261,7 +261,7 @@ func (s *Service) buildDepositMessage(data map[string]interface{}) string {
 			time.Now().Format("2006-01-02 15:04:05"),
 		)
 	}
-	
+
 	return ""
 }
 
@@ -270,7 +270,7 @@ func (s *Service) buildRechargeUsedMessage(data map[string]interface{}) string {
 	userID, _ := data["user_id"].(uint)
 	cardCode, _ := data["card_code"].(string)
 	amount, _ := data["amount"].(int)
-	
+
 	var user store.User
 	if err := s.db.First(&user, userID).Error; err == nil {
 		username := getUserDisplayName(&user)
@@ -286,7 +286,7 @@ func (s *Service) buildRechargeUsedMessage(data map[string]interface{}) string {
 			time.Now().Format("2006-01-02 15:04:05"),
 		)
 	}
-	
+
 	return ""
 }
 
@@ -295,7 +295,7 @@ func (s *Service) buildLowStockMessage(data map[string]interface{}) string {
 	productID, _ := data["product_id"].(uint)
 	productName, _ := data["product_name"].(string)
 	stockCount, _ := data["stock_count"].(int)
-	
+
 	return fmt.Sprintf(
 		"📉 *低库存警告*\n\n"+
 			"商品: %s (ID: %d)\n"+
@@ -311,14 +311,14 @@ func (s *Service) buildNewUserMessage(data map[string]interface{}) string {
 	userID, _ := data["user_id"].(uint)
 	tgUserID, _ := data["tg_user_id"].(int64)
 	username, _ := data["username"].(string)
-	
+
 	displayName := username
 	if username != "" {
 		displayName = "@" + username
 	} else {
 		displayName = fmt.Sprintf("User %d", tgUserID)
 	}
-	
+
 	return fmt.Sprintf(
 		"👤 *新用户注册*\n\n"+
 			"用户: %s\n"+
@@ -368,6 +368,7 @@ func escapeMarkdown(text string) string {
 	)
 	return replacer.Replace(text)
 }
+
 // Stop gracefully stops the notification service
 func (s *Service) Stop() {
 	if s.queue != nil {

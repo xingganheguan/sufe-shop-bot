@@ -6,10 +6,10 @@ import (
 
 // Settings keys
 const (
-	SettingOrderExpireHours   = "order_expire_hours"
-	SettingOrderCleanupDays   = "order_cleanup_days"
-	SettingEnableAutoExpire   = "enable_auto_expire"
-	SettingEnableAutoCleanup  = "enable_auto_cleanup"
+	SettingOrderExpireHours  = "order_expire_hours"
+	SettingOrderCleanupDays  = "order_cleanup_days"
+	SettingEnableAutoExpire  = "enable_auto_expire"
+	SettingEnableAutoCleanup = "enable_auto_cleanup"
 )
 
 // GetSetting retrieves a setting by key
@@ -41,7 +41,7 @@ func GetSetting(db *gorm.DB, key string) (string, error) {
 func SetSetting(db *gorm.DB, key, value, description, settingType string) error {
 	var setting SystemSetting
 	err := db.Where("key = ?", key).First(&setting).Error
-	
+
 	if err == gorm.ErrRecordNotFound {
 		// Create new setting
 		setting = SystemSetting{
@@ -52,7 +52,7 @@ func SetSetting(db *gorm.DB, key, value, description, settingType string) error 
 		}
 		return db.Create(&setting).Error
 	}
-	
+
 	// Update existing setting
 	return db.Model(&setting).Updates(map[string]interface{}{
 		"value":       value,
@@ -101,7 +101,7 @@ func InitializeSettings(db *gorm.DB) error {
 			Type:        "bool",
 		},
 	}
-	
+
 	for _, s := range defaultSettings {
 		var existing SystemSetting
 		err := db.Where("key = ?", s.Key).First(&existing).Error
@@ -116,7 +116,7 @@ func InitializeSettings(db *gorm.DB) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -126,12 +126,12 @@ func GetSettingsMap(db *gorm.DB) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	result := make(map[string]string)
 	for _, s := range settings {
 		result[s.Key] = s.Value
 	}
-	
+
 	// Add defaults for missing settings
 	if _, ok := result[SettingOrderExpireHours]; !ok {
 		result[SettingOrderExpireHours] = "24"
@@ -145,6 +145,6 @@ func GetSettingsMap(db *gorm.DB) (map[string]string, error) {
 	if _, ok := result[SettingEnableAutoCleanup]; !ok {
 		result[SettingEnableAutoCleanup] = "true"
 	}
-	
+
 	return result, nil
 }

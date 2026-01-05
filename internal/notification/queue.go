@@ -4,35 +4,35 @@ import (
 	"context"
 	"sync"
 	"time"
-	
-	logger "shop-bot/internal/log"
+
 	"github.com/google/uuid"
+	logger "shop-bot/internal/log"
 )
 
 // MemoryQueue implements an in-memory notification queue
 type MemoryQueue struct {
-	service     *Service
-	queue       chan *Notification
-	ctx         context.Context
-	cancel      context.CancelFunc
-	wg          sync.WaitGroup
-	maxRetries  int
-	retryDelay  time.Duration
-	rateLimit   *rateLimiter
+	service    *Service
+	queue      chan *Notification
+	ctx        context.Context
+	cancel     context.CancelFunc
+	wg         sync.WaitGroup
+	maxRetries int
+	retryDelay time.Duration
+	rateLimit  *rateLimiter
 }
 
 // rateLimiter implements a simple rate limiter
 type rateLimiter struct {
-	mu         sync.Mutex
-	count      int
-	window     time.Time
-	maxPerMin  int
+	mu        sync.Mutex
+	count     int
+	window    time.Time
+	maxPerMin int
 }
 
 // NewMemoryQueue creates a new in-memory queue
 func NewMemoryQueue(service *Service, config *NotificationConfig) *MemoryQueue {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &MemoryQueue{
 		service:    service,
 		queue:      make(chan *Notification, 1000), // Buffer size of 1000
@@ -55,10 +55,10 @@ func (q *MemoryQueue) Push(notification *Notification) error {
 	if notification.CreatedAt.IsZero() {
 		notification.CreatedAt = time.Now()
 	}
-	
+
 	select {
 	case q.queue <- notification:
-		logger.Info("Notification queued", 
+		logger.Info("Notification queued",
 			"id", notification.ID,
 			"type", notification.Type,
 			"priority", notification.Priority)
@@ -78,7 +78,7 @@ func (q *MemoryQueue) Process() {
 	q.wg.Add(1)
 	go func() {
 		defer q.wg.Done()
-		
+
 		for {
 			select {
 			case notification := <-q.queue:
@@ -115,7 +115,7 @@ func (q *MemoryQueue) processNotification(notification *Notification) {
 		q.Push(notification)
 		return
 	}
-	
+
 	// Process by priority
 	switch notification.Priority {
 	case PriorityHigh:
@@ -127,7 +127,7 @@ func (q *MemoryQueue) processNotification(notification *Notification) {
 	default:
 		notification.Priority = PriorityMedium
 	}
-	
+
 	// Try to send the notification
 	err := q.sendWithRetry(notification)
 	if err != nil {
@@ -141,16 +141,16 @@ func (q *MemoryQueue) processNotification(notification *Notification) {
 // sendWithRetry sends a notification with retry logic
 func (q *MemoryQueue) sendWithRetry(notification *Notification) error {
 	var lastErr error
-	
+
 	for i := 0; i <= q.maxRetries; i++ {
 		if i > 0 {
 			// Wait before retry
 			time.Sleep(q.retryDelay * time.Duration(i))
 		}
-		
+
 		// Send notification using the service
 		q.service.NotifyAdmins(notification.Type, notification.Data)
-		
+
 		// Since NotifyAdmins doesn't return error, assume success
 		logger.Info("Notification sent successfully",
 			"id", notification.ID,
@@ -158,7 +158,7 @@ func (q *MemoryQueue) sendWithRetry(notification *Notification) error {
 			"attempt", i+1)
 		return nil
 	}
-	
+
 	notification.LastError = lastErr.Error()
 	return lastErr
 }
@@ -167,18 +167,18 @@ func (q *MemoryQueue) sendWithRetry(notification *Notification) error {
 func (q *MemoryQueue) checkRateLimit() bool {
 	q.rateLimit.mu.Lock()
 	defer q.rateLimit.mu.Unlock()
-	
+
 	now := time.Now()
 	// Reset counter if we're in a new minute window
 	if now.Sub(q.rateLimit.window) > time.Minute {
 		q.rateLimit.count = 0
 		q.rateLimit.window = now
 	}
-	
+
 	if q.rateLimit.count >= q.rateLimit.maxPerMin {
 		return false
 	}
-	
+
 	q.rateLimit.count++
 	return true
 }

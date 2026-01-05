@@ -27,23 +27,23 @@ import (
 )
 
 type Server struct {
-	adminToken   string
-	db           *gorm.DB
-	bot          *tgbotapi.BotAPI
-	epay         *payment.Client
-	config       *config.Config
+	adminToken    string
+	db            *gorm.DB
+	bot           *tgbotapi.BotAPI
+	epay          *payment.Client
+	config        *config.Config
 	configManager *config.Manager
-	broadcast    *broadcast.Service
-	notification *notification.Service
+	broadcast     *broadcast.Service
+	notification  *notification.Service
 	ticketService *ticket.Service
-	jwtService   *auth.JWTService
+	jwtService    *auth.JWTService
 
 	// Security services
-	passwordService  *auth.PasswordService
-	rateLimiter      *auth.RateLimiter
-	sessionManager   *auth.SessionManager
-	dataSecurity     *security.DataSecurity
-	securityLogger   *security.SecurityLogger
+	passwordService *auth.PasswordService
+	rateLimiter     *auth.RateLimiter
+	sessionManager  *auth.SessionManager
+	dataSecurity    *security.DataSecurity
+	securityLogger  *security.SecurityLogger
 }
 
 func NewServer(adminToken string, db *gorm.DB) *Server {
@@ -56,7 +56,7 @@ func NewServer(adminToken string, db *gorm.DB) *Server {
 			db:         db,
 		}
 	}
-	
+
 	// Initialize bot API for sending messages
 	var bot *tgbotapi.BotAPI
 	if cfg.BotToken != "" {
@@ -65,31 +65,31 @@ func NewServer(adminToken string, db *gorm.DB) *Server {
 			logger.Error("Failed to init bot API", "error", err)
 		}
 	}
-	
+
 	// Initialize epay client
 	var epayClient *payment.Client
 	if cfg.EpayPID != "" && cfg.EpayKey != "" && cfg.EpayGateway != "" {
 		epayClient = payment.NewClient(cfg.EpayPID, cfg.EpayKey, cfg.EpayGateway)
 	}
-	
+
 	// Initialize broadcast service
 	var broadcastService *broadcast.Service
 	if bot != nil {
 		broadcastService = broadcast.NewService(db, bot)
 	}
-	
+
 	// Initialize notification service
 	var notificationService *notification.Service
 	if bot != nil && cfg != nil {
 		notificationService = notification.NewService(bot, cfg, db)
 	}
-	
+
 	// Initialize ticket service
 	var ticketService *ticket.Service
 	if bot != nil {
 		ticketService = ticket.NewService(db, bot)
 	}
-	
+
 	// Initialize JWT service
 	var jwtService *auth.JWTService
 	if cfg != nil {
@@ -97,20 +97,20 @@ func NewServer(adminToken string, db *gorm.DB) *Server {
 			SecretKey:        cfg.JWTSecret,
 			TokenExpiry:      time.Duration(cfg.JWTExpiry) * time.Hour,
 			RefreshExpiry:    time.Duration(cfg.JWTRefreshExpiry) * 24 * time.Hour,
-			Issuer:          "shop-bot-admin",
-			LegacyToken:     adminToken,
+			Issuer:           "shop-bot-admin",
+			LegacyToken:      adminToken,
 			EnableLegacyAuth: cfg.EnableLegacyAuth,
 		}
 		jwtService = auth.NewJWTService(jwtConfig)
 	}
-	
+
 	// Initialize security services
 	var passwordService *auth.PasswordService
 	var rateLimiter *auth.RateLimiter
 	var sessionManager *auth.SessionManager
 	var dataSecurity *security.DataSecurity
 	var securityLogger *security.SecurityLogger
-	
+
 	if cfg != nil {
 		// Password service
 		if cfg.EnablePasswordPolicy {
@@ -124,7 +124,7 @@ func NewServer(adminToken string, db *gorm.DB) *Server {
 			}
 			passwordService = auth.NewPasswordService(passwordConfig)
 		}
-		
+
 		// Rate limiter for login attempts
 		rateLimiterConfig := &auth.RateLimiterConfig{
 			MaxAttempts:     cfg.LoginMaxAttempts,
@@ -133,7 +133,7 @@ func NewServer(adminToken string, db *gorm.DB) *Server {
 			CleanupInterval: 10 * time.Minute,
 		}
 		rateLimiter = auth.NewRateLimiter(rateLimiterConfig)
-		
+
 		// Session manager
 		sessionConfig := &auth.SessionConfig{
 			MaxConcurrent:        cfg.SessionMaxConcurrent,
@@ -143,20 +143,20 @@ func NewServer(adminToken string, db *gorm.DB) *Server {
 			EnableUserAgentCheck: cfg.EnableUserAgentCheck,
 		}
 		sessionManager = auth.NewSessionManager(sessionConfig)
-		
+
 		// Data security
 		if ds, err := security.NewDataSecurity(cfg.DataEncryptionKey); err == nil {
 			dataSecurity = ds
 		} else {
 			logger.Error("Failed to initialize data security", "error", err)
 		}
-		
+
 		// Security logger
 		if cfg.EnableSecurityLogging {
 			securityLogger = security.NewSecurityLogger(true, cfg.MaskSensitiveData)
 		}
 	}
-	
+
 	return &Server{
 		adminToken:      adminToken,
 		db:              db,
@@ -182,18 +182,18 @@ func NewServerWithApp(adminToken string, app interface{}) *Server {
 	if appValue.Kind() == reflect.Ptr {
 		appValue = appValue.Elem()
 	}
-	
+
 	server := &Server{
 		adminToken: adminToken,
 	}
-	
+
 	// Try to get DB field
 	if dbField := appValue.FieldByName("DB"); dbField.IsValid() {
 		if db, ok := dbField.Interface().(*gorm.DB); ok {
 			server.db = db
 		}
 	}
-	
+
 	// Try to get Config field
 	if cfgField := appValue.FieldByName("Config"); cfgField.IsValid() {
 		if cfg, ok := cfgField.Interface().(*config.Config); ok {
@@ -220,7 +220,7 @@ func NewServerWithApp(adminToken string, app interface{}) *Server {
 			server.configManager = cfgManager
 		}
 	}
-	
+
 	// Try to get Bot field and extract API
 	if botField := appValue.FieldByName("Bot"); botField.IsValid() && !botField.IsNil() {
 		if method := botField.MethodByName("GetAPI"); method.IsValid() {
@@ -231,39 +231,39 @@ func NewServerWithApp(adminToken string, app interface{}) *Server {
 			}
 		}
 	}
-	
+
 	// Try to get Broadcast field
 	if broadcastField := appValue.FieldByName("Broadcast"); broadcastField.IsValid() {
 		if bc, ok := broadcastField.Interface().(*broadcast.Service); ok {
 			server.broadcast = bc
 		}
 	}
-	
+
 	// Initialize notification service if we have bot and config
 	if server.bot != nil && server.config != nil {
 		server.notification = notification.NewService(server.bot, server.config, server.db)
 	}
-	
+
 	// Initialize ticket service
 	if server.bot != nil && server.db != nil {
 		server.ticketService = ticket.NewService(server.db, server.bot)
 	}
-	
+
 	// Initialize JWT service
 	if server.config != nil {
 		jwtConfig := &auth.JWTConfig{
 			SecretKey:        server.config.JWTSecret,
 			TokenExpiry:      time.Duration(server.config.JWTExpiry) * time.Hour,
 			RefreshExpiry:    time.Duration(server.config.JWTRefreshExpiry) * 24 * time.Hour,
-			Issuer:          "shop-bot-admin",
-			LegacyToken:     server.adminToken,
+			Issuer:           "shop-bot-admin",
+			LegacyToken:      server.adminToken,
 			EnableLegacyAuth: server.config.EnableLegacyAuth,
 		}
 		server.jwtService = auth.NewJWTService(jwtConfig)
-		
+
 		// Initialize security services
 		cfg := server.config
-		
+
 		// Password service
 		if cfg.EnablePasswordPolicy {
 			passwordConfig := &auth.PasswordConfig{
@@ -276,7 +276,7 @@ func NewServerWithApp(adminToken string, app interface{}) *Server {
 			}
 			server.passwordService = auth.NewPasswordService(passwordConfig)
 		}
-		
+
 		// Rate limiter for login attempts
 		rateLimiterConfig := &auth.RateLimiterConfig{
 			MaxAttempts:     cfg.LoginMaxAttempts,
@@ -285,7 +285,7 @@ func NewServerWithApp(adminToken string, app interface{}) *Server {
 			CleanupInterval: 10 * time.Minute,
 		}
 		server.rateLimiter = auth.NewRateLimiter(rateLimiterConfig)
-		
+
 		// Session manager
 		sessionConfig := &auth.SessionConfig{
 			MaxConcurrent:        cfg.SessionMaxConcurrent,
@@ -295,20 +295,20 @@ func NewServerWithApp(adminToken string, app interface{}) *Server {
 			EnableUserAgentCheck: cfg.EnableUserAgentCheck,
 		}
 		server.sessionManager = auth.NewSessionManager(sessionConfig)
-		
+
 		// Data security
 		if ds, err := security.NewDataSecurity(cfg.DataEncryptionKey); err == nil {
 			server.dataSecurity = ds
 		} else {
 			logger.Error("Failed to initialize data security", "error", err)
 		}
-		
+
 		// Security logger
 		if cfg.EnableSecurityLogging {
 			server.securityLogger = security.NewSecurityLogger(true, cfg.MaskSensitiveData)
 		}
 	}
-	
+
 	return server
 }
 
@@ -340,10 +340,10 @@ func toInt64(v interface{}) (int64, error) {
 
 func (s *Server) Router() *gin.Engine {
 	r := gin.Default()
-	
+
 	// Get currency settings
 	_, currencySymbol := store.GetCurrencySettings(s.db, s.config)
-	
+
 	// Add template functions BEFORE loading templates
 	r.SetFuncMap(template.FuncMap{
 		"divf": func(a, b interface{}) float64 {
@@ -394,15 +394,15 @@ func (s *Server) Router() *gin.Engine {
 			return ai * bi
 		},
 	})
-	
+
 	// Load HTML templates AFTER setting functions
 	r.LoadHTMLGlob("templates/*")
 
 	// Add middleware
 	r.Use(s.requestLogger())
-	r.Use(RecoveryMiddleware())  // Add panic recovery before error handler
+	r.Use(RecoveryMiddleware()) // Add panic recovery before error handler
 	r.Use(ErrorHandlerMiddleware())
-	
+
 	// Set up all routes
 	s.SetupRoutes(r)
 
@@ -421,30 +421,30 @@ func (s *Server) SetupRoutes(r *gin.Engine) {
 				s.config.RateLimitMessage,
 			))
 		}
-		
+
 		// Security headers
 		if s.config.EnableSecurityHeaders {
 			securityConfig := &middleware.SecurityConfig{
 				EnableSecurityHeaders: true,
-				HSTS:                 s.config.EnableHSTS,
-				HSTSMaxAge:          s.config.HSTSMaxAge,
-				ContentTypeNosniff:  true,
-				XFrameOptions:       "SAMEORIGIN",
-				XSSProtection:       true,
+				HSTS:                  s.config.EnableHSTS,
+				HSTSMaxAge:            s.config.HSTSMaxAge,
+				ContentTypeNosniff:    true,
+				XFrameOptions:         "SAMEORIGIN",
+				XSSProtection:         true,
 			}
 			r.Use(middleware.SecurityHeadersMiddleware(securityConfig))
 		}
-		
+
 		// CSRF protection for forms
 		if s.config.EnableCSRF {
 			// Apply CSRF middleware selectively (not on all routes)
 			// We'll add it to specific routes that need it
 		}
 	}
-	
+
 	// Static files (CSS, JS)
 	r.Static("/static", "./static")
-	
+
 	// Health check
 	r.GET("/healthz", func(c *gin.Context) {
 		c.Status(http.StatusOK)
@@ -461,18 +461,18 @@ func (s *Server) SetupRoutes(r *gin.Engine) {
 			c.Redirect(http.StatusFound, "/admin/")
 			return
 		}
-		
+
 		// Check cookie
 		cookie, err := c.Cookie("admin_token")
 		if err == nil && cookie == s.adminToken {
 			c.Redirect(http.StatusFound, "/admin/")
 			return
 		}
-		
+
 		// Show login page
 		s.handleLoginPage(c)
 	})
-	
+
 	// API routes
 	r.POST("/api/login", s.handleLogin)
 	r.POST("/api/logout", s.handleLogout)
@@ -481,7 +481,7 @@ func (s *Server) SetupRoutes(r *gin.Engine) {
 	// Payment webhook routes
 	r.POST("/payment/epay/notify", s.handleEpayNotify)
 	r.GET("/payment/return", s.handlePaymentReturn)
-	
+
 	// Test bot endpoint (protected)
 	r.POST("/admin/test-bot/:user_id", s.authMiddleware(), s.handleTestBot)
 
@@ -505,7 +505,7 @@ func (s *Server) SetupRoutes(r *gin.Engine) {
 
 		// Order management
 		adminGroup.GET("/orders", s.handleOrderList)
-		
+
 		// User management
 		adminGroup.GET("/users", s.handleUserList)
 		adminGroup.GET("/users/:id", s.handleUserDetail)
@@ -523,7 +523,7 @@ func (s *Server) SetupRoutes(r *gin.Engine) {
 		// System settings
 		adminGroup.GET("/settings", s.handleSettingsList)
 		adminGroup.POST("/settings", s.handleSettingsUpdate)
-		
+
 		// FAQ management
 		adminGroup.GET("/faq", s.handleFAQList)
 		adminGroup.POST("/faq", s.handleFAQCreate)
@@ -531,13 +531,13 @@ func (s *Server) SetupRoutes(r *gin.Engine) {
 		adminGroup.DELETE("/faq/:id", s.handleFAQDelete)
 		adminGroup.PUT("/faq/:id/sort", s.handleFAQSort)
 		adminGroup.POST("/faq/init", s.handleFAQInit)
-		
+
 		// Broadcast management
 		adminGroup.GET("/broadcast", s.handleBroadcastList)
 		adminGroup.POST("/broadcast", s.handleBroadcastCreate)
-		adminGroup.POST("/broadcast/send", s.handleBroadcastSend)  // Add this route for AJAX requests
+		adminGroup.POST("/broadcast/send", s.handleBroadcastSend) // Add this route for AJAX requests
 		adminGroup.GET("/broadcast/:id", s.handleBroadcastDetail)
-		
+
 		// Ticket management
 		adminGroup.GET("/tickets", s.handleTicketList)
 		adminGroup.GET("/tickets/:id", s.handleTicketDetail)
@@ -552,7 +552,7 @@ func (s *Server) SetupRoutes(r *gin.Engine) {
 		adminGroup.POST("/ticket-templates", s.handleTicketTemplateCreate)
 		adminGroup.PUT("/ticket-templates/:id", s.handleTicketTemplateUpdate)
 		adminGroup.DELETE("/ticket-templates/:id", s.handleTicketTemplateDelete)
-		
+
 		// Order maintenance APIs
 		adminGroup.POST("/api/settings", s.handleSaveSettings)
 		adminGroup.POST("/api/settings/core", s.handleSaveCoreSettings)
@@ -661,8 +661,8 @@ func (s *Server) authMiddleware() gin.HandlerFunc {
 
 		// If it's an API request or AJAX request, return 401
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") ||
-		   c.GetHeader("X-Requested-With") == "XMLHttpRequest" ||
-		   strings.Contains(c.GetHeader("Accept"), "application/json") {
+			c.GetHeader("X-Requested-With") == "XMLHttpRequest" ||
+			strings.Contains(c.GetHeader("Accept"), "application/json") {
 			JSONError(c, NewUnauthorizedError("Authentication required"))
 			c.Abort()
 			return
@@ -674,7 +674,6 @@ func (s *Server) authMiddleware() gin.HandlerFunc {
 	}
 }
 
-
 // handleLoginPage serves the login page
 func (s *Server) handleLoginPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "login.html", nil)
@@ -685,16 +684,16 @@ func (s *Server) handleLogin(c *gin.Context) {
 	var req struct {
 		Token string `json:"token"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		JSONError(c, NewBadRequestError("Invalid request format", err))
 		return
 	}
-	
+
 	// Get client IP and User-Agent
 	clientIP := c.ClientIP()
 	userAgent := c.Request.UserAgent()
-	
+
 	// Check rate limiting if enabled
 	if s.rateLimiter != nil {
 		allowed, remaining := s.rateLimiter.CheckAttempt(clientIP)
@@ -707,28 +706,28 @@ func (s *Server) handleLogin(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	// Verify token against admin token
 	if req.Token != s.adminToken {
 		// Record failed attempt
 		if s.rateLimiter != nil {
 			s.rateLimiter.RecordAttempt(clientIP, false)
 		}
-		
+
 		// Log failed login
 		if s.securityLogger != nil {
 			s.securityLogger.LogLoginFailed("admin", clientIP, userAgent, "invalid_token")
 		}
-		
+
 		JSONError(c, NewUnauthorizedError("Invalid credentials"))
 		return
 	}
-	
+
 	// Record successful attempt
 	if s.rateLimiter != nil {
 		s.rateLimiter.RecordAttempt(clientIP, true)
 	}
-	
+
 	// Create session if session manager is available
 	var sessionID string
 	if s.sessionManager != nil {
@@ -739,11 +738,11 @@ func (s *Server) handleLogin(c *gin.Context) {
 			sessionID = session.ID
 		}
 	}
-	
+
 	// Generate JWT token if JWT service is available
 	var responseToken string
 	var refreshToken string
-	
+
 	if s.jwtService != nil {
 		// Generate JWT tokens
 		token, err := s.jwtService.GenerateToken("admin", "admin", "admin")
@@ -753,7 +752,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 			responseToken = s.adminToken
 		} else {
 			responseToken = token
-			
+
 			// Generate refresh token
 			refresh, err := s.jwtService.GenerateRefreshToken("admin")
 			if err != nil {
@@ -766,36 +765,36 @@ func (s *Server) handleLogin(c *gin.Context) {
 		// Use legacy token
 		responseToken = s.adminToken
 	}
-	
+
 	// Log successful login
 	if s.securityLogger != nil {
 		s.securityLogger.LogLogin("admin", "admin", clientIP, userAgent)
 	}
-	
+
 	// Set cookie with the token
 	c.SetCookie("admin_token", responseToken, 86400*7, "/", "", false, true) // 7 days
-	
+
 	// Set session cookie if available
 	if sessionID != "" {
 		c.SetCookie("session_id", sessionID, 86400, "/", "", false, true) // 1 day
 	}
-	
+
 	// Return tokens in response
 	response := gin.H{
 		"success": true,
 		"token":   responseToken,
 	}
-	
+
 	if refreshToken != "" {
 		response["refresh_token"] = refreshToken
 		// Also set refresh token as httpOnly cookie
 		c.SetCookie("refresh_token", refreshToken, 86400*7, "/", "", false, true)
 	}
-	
+
 	if sessionID != "" {
 		response["session_id"] = sessionID
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -814,9 +813,9 @@ func (s *Server) handleRefreshToken(c *gin.Context) {
 		JSONError(c, NewInternalError(fmt.Errorf("JWT service not available")))
 		return
 	}
-	
+
 	var refreshToken string
-	
+
 	// Try to get refresh token from request body
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
@@ -824,29 +823,29 @@ func (s *Server) handleRefreshToken(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err == nil && req.RefreshToken != "" {
 		refreshToken = req.RefreshToken
 	}
-	
+
 	// Try to get from cookie if not in body
 	if refreshToken == "" {
 		if cookie, err := c.Cookie("refresh_token"); err == nil {
 			refreshToken = cookie
 		}
 	}
-	
+
 	if refreshToken == "" {
 		JSONError(c, NewBadRequestError("Refresh token required", nil))
 		return
 	}
-	
+
 	// Generate new access token
 	newToken, err := s.jwtService.RefreshToken(refreshToken)
 	if err != nil {
 		JSONError(c, NewUnauthorizedError("Invalid refresh token"))
 		return
 	}
-	
+
 	// Set new token in cookie
 	c.SetCookie("admin_token", newToken, 86400*7, "/", "", false, true)
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"token":   newToken,
@@ -861,20 +860,20 @@ func (s *Server) handleTestBot(c *gin.Context) {
 		JSONError(c, NewBadRequestError("Invalid user ID format", err))
 		return
 	}
-	
+
 	if s.bot == nil {
 		JSONError(c, NewInternalError(fmt.Errorf("bot service not initialized")))
 		return
 	}
-	
+
 	// Log bot info
 	logger.Info("Test bot", "bot_username", s.bot.Self.UserName, "bot_id", s.bot.Self.ID, "target_user", userID)
-	
+
 	// Send test message
 	testMsg := "🔔 测试消息 / Test Message\n\n这是一条测试消息，用于验证机器人连接。\nThis is a test message to verify bot connection."
 	msg := tgbotapi.NewMessage(userID, testMsg)
 	msg.ParseMode = "Markdown"
-	
+
 	resp, err := s.bot.Send(msg)
 	if err != nil {
 		logger.Error("Failed to send test message", "error", err, "user_id", userID, "error_type", fmt.Sprintf("%T", err))
@@ -892,11 +891,11 @@ func (s *Server) handleTestBot(c *gin.Context) {
 		JSONError(c, NewExternalServiceError("Telegram Bot API", err))
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message_id": resp.MessageID,
-		"chat_id": resp.Chat.ID,
+		"success":      true,
+		"message_id":   resp.MessageID,
+		"chat_id":      resp.Chat.ID,
 		"bot_username": s.bot.Self.UserName,
 	})
 }

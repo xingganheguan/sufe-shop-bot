@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"shop-bot/internal/store"
 	logger "shop-bot/internal/log"
 	payment "shop-bot/internal/payment/epay"
+	"shop-bot/internal/store"
 )
 
 // handleSettings shows the settings page
@@ -33,17 +33,17 @@ func (s *Server) handleSettings(c *gin.Context) {
 
 	// Get core settings from config
 	coreSettings := gin.H{
-		"admin_token": strings.Repeat("*", 20), // Mask the token
-		"bot_token": strings.Repeat("*", 20), // Mask the token
+		"admin_token":        strings.Repeat("*", 20), // Mask the token
+		"bot_token":          strings.Repeat("*", 20), // Mask the token
 		"admin_telegram_ids": s.config.AdminTelegramIDs,
 	}
 
 	// Get payment settings from config
 	paymentSettings := gin.H{
-		"epay_pid": s.config.EpayPID,
-		"epay_key": strings.Repeat("*", 20), // Mask the key
+		"epay_pid":     s.config.EpayPID,
+		"epay_key":     strings.Repeat("*", 20), // Mask the key
 		"epay_gateway": s.config.EpayGateway,
-		"base_url": s.config.BaseURL,
+		"base_url":     s.config.BaseURL,
 	}
 
 	// Get currency list
@@ -75,12 +75,12 @@ func (s *Server) handleSettings(c *gin.Context) {
 	}
 
 	c.HTML(http.StatusOK, "settings.html", gin.H{
-		"currency":      currency,
-		"symbol":        symbol,
-		"currencies":    currencies,
-		"orderSettings": orderSettings,
-		"orderStats":    orderStats,
-		"coreSettings": coreSettings,
+		"currency":        currency,
+		"symbol":          symbol,
+		"currencies":      currencies,
+		"orderSettings":   orderSettings,
+		"orderStats":      orderStats,
+		"coreSettings":    coreSettings,
 		"paymentSettings": paymentSettings,
 	})
 }
@@ -92,11 +92,11 @@ func (s *Server) handleSaveSettings(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-	
+
 	// Save each setting
 	for key, value := range req {
 		var description, settingType string
-		
+
 		switch key {
 		case "order_expire_hours":
 			description = "订单过期时间（小时）"
@@ -131,13 +131,13 @@ func (s *Server) handleSaveSettings(c *gin.Context) {
 		default:
 			continue // Skip unknown settings
 		}
-		
+
 		if err := store.SetSetting(s.db, key, value, description, settingType); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save setting"})
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Settings saved successfully"})
 }
 
@@ -147,10 +147,10 @@ func (s *Server) handleExpireOrders(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Get count of expired orders for feedback
 	count, _ := store.GetExpiredOrdersCount(s.db)
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Orders expired successfully",
 		"count":   count,
@@ -161,16 +161,16 @@ func (s *Server) handleExpireOrders(c *gin.Context) {
 func (s *Server) handleCleanupOrders(c *gin.Context) {
 	// Get count before cleanup
 	countBefore, _ := store.GetExpiredOrdersCount(s.db)
-	
+
 	if err := store.CleanupExpiredOrders(s.db); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Get count after cleanup
 	countAfter, _ := store.GetExpiredOrdersCount(s.db)
 	cleanedCount := countBefore - countAfter
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Orders cleaned up successfully",
 		"count":   cleanedCount,
@@ -180,9 +180,9 @@ func (s *Server) handleCleanupOrders(c *gin.Context) {
 // handleSaveCoreSettings saves core system settings
 func (s *Server) handleSaveCoreSettings(c *gin.Context) {
 	var req struct {
-		AdminToken        string `json:"admin_token"`
-		BotToken          string `json:"bot_token"`
-		AdminTelegramIDs  string `json:"admin_telegram_ids"`
+		AdminToken       string `json:"admin_token"`
+		BotToken         string `json:"bot_token"`
+		AdminTelegramIDs string `json:"admin_telegram_ids"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -250,10 +250,10 @@ func (s *Server) handleSaveCoreSettings(c *gin.Context) {
 			if result.Error != nil {
 				// Create new admin user
 				adminUser = store.AdminUser{
-					Username:            "admin_" + idStr,
-					TelegramID:          &telegramID,
+					Username:             "admin_" + idStr,
+					TelegramID:           &telegramID,
 					ReceiveNotifications: true,
-					IsActive:            true,
+					IsActive:             true,
 				}
 
 				if err := s.db.Create(&adminUser).Error; err != nil {

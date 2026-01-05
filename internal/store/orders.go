@@ -28,11 +28,11 @@ func GetUserOrder(db *gorm.DB, userID uint, orderID uint) (*Order, error) {
 	err := db.Where("id = ? AND user_id = ?", orderID, userID).
 		Preload("Product").
 		First(&order).Error
-	
+
 	if err == gorm.ErrRecordNotFound {
 		return nil, ErrOrderNotFound
 	}
-	
+
 	return &order, err
 }
 
@@ -50,13 +50,13 @@ func GetUserOrderStats(db *gorm.DB, userID uint) (totalOrders, deliveredOrders i
 	if err != nil {
 		return
 	}
-	
+
 	// Delivered orders
 	err = db.Model(&Order{}).Where("user_id = ? AND status = ?", userID, "delivered").Count(&deliveredOrders).Error
 	if err != nil {
 		return
 	}
-	
+
 	// Total spent
 	var result struct {
 		Total int
@@ -66,7 +66,7 @@ func GetUserOrderStats(db *gorm.DB, userID uint) (totalOrders, deliveredOrders i
 		Where("user_id = ? AND status IN (?, ?)", userID, "paid", "delivered").
 		Scan(&result).Error
 	totalSpent = result.Total
-	
+
 	return
 }
 

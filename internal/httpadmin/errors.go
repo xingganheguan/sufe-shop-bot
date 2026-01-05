@@ -5,18 +5,18 @@ import (
 	"net/http"
 	"runtime"
 	"time"
-	
+
 	"github.com/gin-gonic/gin"
 	logger "shop-bot/internal/log"
 )
 
 // ErrorResponse 统一的错误响应结构
 type ErrorResponse struct {
-	Code      string    `json:"code"`               // 错误代码
-	Message   string    `json:"message"`            // 用户友好的错误消息
-	Details   string    `json:"details,omitempty"`  // 详细错误信息（仅在开发模式下显示）
-	TraceID   string    `json:"trace_id"`           // 请求追踪ID
-	Timestamp time.Time `json:"timestamp"`          // 错误发生时间
+	Code      string    `json:"code"`              // 错误代码
+	Message   string    `json:"message"`           // 用户友好的错误消息
+	Details   string    `json:"details,omitempty"` // 详细错误信息（仅在开发模式下显示）
+	TraceID   string    `json:"trace_id"`          // 请求追踪ID
+	Timestamp time.Time `json:"timestamp"`         // 错误发生时间
 }
 
 // AppError 应用程序错误
@@ -153,7 +153,7 @@ func NewTooManyRequestsError(message string) AppError {
 func JSONError(c *gin.Context, err AppError) {
 	traceID, _ := c.Get("trace_id")
 	traceIDStr, _ := traceID.(string)
-	
+
 	logger.Error("Request failed",
 		"trace_id", traceIDStr,
 		"code", err.Code,
@@ -163,18 +163,18 @@ func JSONError(c *gin.Context, err AppError) {
 		"path", c.Request.URL.Path,
 		"method", c.Request.Method,
 	)
-	
+
 	response := ErrorResponse{
 		Code:      err.Code,
 		Message:   err.Message,
 		TraceID:   traceIDStr,
 		Timestamp: time.Now(),
 	}
-	
+
 	if gin.Mode() == gin.DebugMode && err.Details != "" {
 		response.Details = err.Details
 	}
-	
+
 	c.JSON(err.HTTPStatus, response)
 }
 
@@ -182,15 +182,15 @@ func JSONError(c *gin.Context, err AppError) {
 func ErrorHandlerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
-		
+
 		// 检查是否有错误
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last()
-			
+
 			// 获取trace ID
 			traceID, _ := c.Get("trace_id")
 			traceIDStr, _ := traceID.(string)
-			
+
 			// 处理AppError类型
 			if appErr, ok := err.Err.(AppError); ok {
 				// 记录详细错误日志
@@ -205,23 +205,23 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 					"client_ip", c.ClientIP(),
 					"user_agent", c.Request.UserAgent(),
 				)
-				
+
 				response := ErrorResponse{
 					Code:      appErr.Code,
 					Message:   appErr.Message,
 					TraceID:   traceIDStr,
 					Timestamp: time.Now(),
 				}
-				
+
 				// 在开发模式下显示详细错误
 				if gin.Mode() == gin.DebugMode && appErr.Details != "" {
 					response.Details = appErr.Details
 				}
-				
+
 				c.JSON(appErr.HTTPStatus, response)
 				return
 			}
-			
+
 			// 处理其他类型的错误
 			logger.Error("Unhandled error",
 				"trace_id", traceIDStr,
@@ -231,19 +231,19 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 				"client_ip", c.ClientIP(),
 				"user_agent", c.Request.UserAgent(),
 			)
-			
+
 			response := ErrorResponse{
 				Code:      ErrCodeInternalError,
 				Message:   "Internal server error",
 				TraceID:   traceIDStr,
 				Timestamp: time.Now(),
 			}
-			
+
 			// 在开发模式下显示原始错误
 			if gin.Mode() == gin.DebugMode {
 				response.Details = err.Err.Error()
 			}
-			
+
 			c.JSON(http.StatusInternalServerError, response)
 		}
 	}
@@ -257,13 +257,13 @@ func RecoveryMiddleware() gin.HandlerFunc {
 				// 获取trace ID
 				traceID, _ := c.Get("trace_id")
 				traceIDStr, _ := traceID.(string)
-				
+
 				// 获取堆栈信息
 				var stack string
 				buf := make([]byte, 4096)
 				n := runtime.Stack(buf, false)
 				stack = string(buf[:n])
-				
+
 				// 记录panic日志
 				logger.Error("Panic recovered",
 					"trace_id", traceIDStr,
@@ -274,7 +274,7 @@ func RecoveryMiddleware() gin.HandlerFunc {
 					"user_agent", c.Request.UserAgent(),
 					"stack", stack,
 				)
-				
+
 				// 返回错误响应
 				response := ErrorResponse{
 					Code:      ErrCodeInternalError,
@@ -282,16 +282,16 @@ func RecoveryMiddleware() gin.HandlerFunc {
 					TraceID:   traceIDStr,
 					Timestamp: time.Now(),
 				}
-				
+
 				// 在开发模式下显示panic信息
 				if gin.Mode() == gin.DebugMode {
 					response.Details = fmt.Sprintf("Panic: %v", err)
 				}
-				
+
 				c.AbortWithStatusJSON(http.StatusInternalServerError, response)
 			}
 		}()
-		
+
 		c.Next()
 	}
 }

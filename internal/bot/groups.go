@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	
+
 	"shop-bot/internal/bot/messages"
 	logger "shop-bot/internal/log"
 	"shop-bot/internal/store"
@@ -40,7 +40,7 @@ func (b *Bot) handleGroupRegister(message *tgbotapi.Message) {
 		ChatID: message.Chat.ID,
 		UserID: message.From.ID,
 	}
-	
+
 	member, err := b.api.GetChatMember(tgbotapi.GetChatMemberConfig{ChatConfigWithUser: chatConfig})
 	if err != nil {
 		logger.Error("Failed to get chat member", "error", err)
@@ -87,11 +87,11 @@ func (b *Bot) handleGroupRegister(message *tgbotapi.Message) {
 	successMsg := b.msg.Format(lang, "group_registered", map[string]interface{}{
 		"GroupName": group.GroupName,
 	})
-	
+
 	msg := tgbotapi.NewMessage(message.Chat.ID, successMsg)
 	msg.ParseMode = "Markdown"
 	b.api.Send(msg)
-	
+
 	logger.Info("Group registered", "group_id", group.ID, "tg_group_id", group.TgGroupID)
 }
 
@@ -102,7 +102,7 @@ func (b *Bot) handleGroupUnregister(message *tgbotapi.Message) {
 		ChatID: message.Chat.ID,
 		UserID: message.From.ID,
 	}
-	
+
 	member, err := b.api.GetChatMember(tgbotapi.GetChatMemberConfig{ChatConfigWithUser: chatConfig})
 	if err != nil {
 		logger.Error("Failed to get chat member", "error", err)
@@ -134,7 +134,7 @@ func (b *Bot) handleGroupUnregister(message *tgbotapi.Message) {
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, "✅ 群组已取消注册，不再接收通知 / Group unregistered, will no longer receive notifications")
 	b.api.Send(msg)
-	
+
 	logger.Info("Group unregistered", "group_id", group.ID)
 }
 
@@ -150,7 +150,7 @@ func (b *Bot) handleGroupSettings(message *tgbotapi.Message) {
 
 	// Parse command arguments
 	args := strings.Fields(message.CommandArguments())
-	
+
 	// If no arguments, show current settings
 	if len(args) == 0 {
 		lang := messages.GetUserLanguage(group.Language, "")
@@ -160,7 +160,7 @@ func (b *Bot) handleGroupSettings(message *tgbotapi.Message) {
 			"NotifyPromo": formatBool(group.NotifyPromo, lang),
 			"Language":    group.Language,
 		})
-		
+
 		// Add inline keyboard for settings
 		keyboard := tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
@@ -176,7 +176,7 @@ func (b *Bot) handleGroupSettings(message *tgbotapi.Message) {
 				),
 			),
 		)
-		
+
 		msg := tgbotapi.NewMessage(message.Chat.ID, settingsMsg)
 		msg.ReplyMarkup = keyboard
 		msg.ParseMode = "Markdown"
@@ -222,34 +222,34 @@ func (b *Bot) handleGroupToggle(callback *tgbotapi.CallbackQuery) {
 	if len(parts) != 2 {
 		return
 	}
-	
+
 	var groupID uint
 	fmt.Sscanf(parts[1], "%d", &groupID)
-	
+
 	// Get group
 	var group store.Group
 	if err := b.db.First(&group, groupID).Error; err != nil {
 		logger.Error("Failed to get group", "error", err, "group_id", groupID)
 		return
 	}
-	
+
 	// Check if user is admin
 	chatConfig := tgbotapi.ChatConfigWithUser{
 		ChatID: group.TgGroupID,
 		UserID: int64(callback.From.ID),
 	}
-	
+
 	member, err := b.api.GetChatMember(tgbotapi.GetChatMemberConfig{ChatConfigWithUser: chatConfig})
 	if err != nil {
 		logger.Error("Failed to get chat member", "error", err)
 		return
 	}
-	
+
 	if member.Status != "administrator" && member.Status != "creator" {
 		b.api.Request(tgbotapi.NewCallback(callback.ID, "只有管理员可以修改设置 / Only admins can modify settings"))
 		return
 	}
-	
+
 	// Toggle setting
 	if strings.Contains(callback.Data, "stock") {
 		group.NotifyStock = !group.NotifyStock
@@ -258,7 +258,7 @@ func (b *Bot) handleGroupToggle(callback *tgbotapi.CallbackQuery) {
 		group.NotifyPromo = !group.NotifyPromo
 		store.UpdateGroupSettings(b.db, group.ID, group.NotifyStock, group.NotifyPromo)
 	}
-	
+
 	// Update keyboard
 	lang := messages.GetUserLanguage(group.Language, "")
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
@@ -275,10 +275,10 @@ func (b *Bot) handleGroupToggle(callback *tgbotapi.CallbackQuery) {
 			),
 		),
 	)
-	
+
 	edit := tgbotapi.NewEditMessageReplyMarkup(callback.Message.Chat.ID, callback.Message.MessageID, keyboard)
 	b.api.Send(edit)
-	
+
 	// Send callback response
 	b.api.Request(tgbotapi.NewCallback(callback.ID, "✅ 设置已更新 / Settings updated"))
 }

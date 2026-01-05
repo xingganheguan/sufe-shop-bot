@@ -2,9 +2,9 @@ package httpadmin
 
 import (
 	"net/http"
-	
+
 	"github.com/gin-gonic/gin"
-	
+
 	"shop-bot/internal/store"
 )
 
@@ -13,12 +13,12 @@ func (s *Server) handleFAQInit(c *gin.Context) {
 	// Check if FAQs already exist
 	var count int64
 	s.db.Model(&store.FAQ{}).Count(&count)
-	
+
 	if count > 0 {
 		c.JSON(http.StatusOK, gin.H{"message": "FAQs already exist"})
 		return
 	}
-	
+
 	// Insert sample FAQs
 	sampleFAQs := []store.FAQ{
 		// Chinese FAQs
@@ -94,12 +94,12 @@ func (s *Server) handleFAQInit(c *gin.Context) {
 			IsActive:  true,
 		},
 	}
-	
+
 	// Insert all FAQs
 	if err := s.db.Create(&sampleFAQs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Sample FAQs created successfully", "count": len(sampleFAQs)})
 }

@@ -8,7 +8,7 @@ import (
 
 // LoginAttempt represents a login attempt
 type LoginAttempt struct {
-	Count      int
+	Count       int
 	LastAttempt time.Time
 	LockedUntil time.Time
 }
@@ -44,16 +44,16 @@ func NewRateLimiter(config *RateLimiterConfig) *RateLimiter {
 	if config == nil {
 		config = DefaultRateLimiterConfig()
 	}
-	
+
 	rl := &RateLimiter{
 		config:    config,
 		attempts:  make(map[string]*LoginAttempt),
 		stopClean: make(chan bool),
 	}
-	
+
 	// Start cleanup goroutine
 	go rl.cleanupLoop()
-	
+
 	return rl
 }
 
@@ -61,10 +61,10 @@ func NewRateLimiter(config *RateLimiterConfig) *RateLimiter {
 func (rl *RateLimiter) CheckAttempt(identifier string) (bool, time.Duration) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
-	
+
 	now := time.Now()
 	attempt, exists := rl.attempts[identifier]
-	
+
 	// Create new attempt record if doesn't exist
 	if !exists {
 		rl.attempts[identifier] = &LoginAttempt{
@@ -73,24 +73,24 @@ func (rl *RateLimiter) CheckAttempt(identifier string) (bool, time.Duration) {
 		}
 		return true, 0
 	}
-	
+
 	// Check if currently locked out
 	if !attempt.LockedUntil.IsZero() && now.Before(attempt.LockedUntil) {
 		return false, attempt.LockedUntil.Sub(now)
 	}
-	
+
 	// Reset count if outside window
 	if now.Sub(attempt.LastAttempt) > rl.config.WindowDuration {
 		attempt.Count = 0
 		attempt.LockedUntil = time.Time{}
 	}
-	
+
 	// Check if at limit
 	if attempt.Count >= rl.config.MaxAttempts {
 		attempt.LockedUntil = now.Add(rl.config.LockoutDuration)
 		return false, rl.config.LockoutDuration
 	}
-	
+
 	return true, 0
 }
 
@@ -98,19 +98,19 @@ func (rl *RateLimiter) CheckAttempt(identifier string) (bool, time.Duration) {
 func (rl *RateLimiter) RecordAttempt(identifier string, success bool) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
-	
+
 	now := time.Now()
 	attempt, exists := rl.attempts[identifier]
-	
+
 	if !exists {
 		attempt = &LoginAttempt{
 			LastAttempt: now,
 		}
 		rl.attempts[identifier] = attempt
 	}
-	
+
 	attempt.LastAttempt = now
-	
+
 	if success {
 		// Reset on successful login
 		attempt.Count = 0
@@ -118,7 +118,7 @@ func (rl *RateLimiter) RecordAttempt(identifier string, success bool) {
 	} else {
 		// Increment failed attempts
 		attempt.Count++
-		
+
 		// Lock if exceeded max attempts
 		if attempt.Count >= rl.config.MaxAttempts {
 			attempt.LockedUntil = now.Add(rl.config.LockoutDuration)
@@ -130,7 +130,7 @@ func (rl *RateLimiter) RecordAttempt(identifier string, success bool) {
 func (rl *RateLimiter) ResetAttempts(identifier string) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
-	
+
 	delete(rl.attempts, identifier)
 }
 
@@ -138,12 +138,12 @@ func (rl *RateLimiter) ResetAttempts(identifier string) {
 func (rl *RateLimiter) GetAttemptInfo(identifier string) (attempts int, lockedUntil time.Time, exists bool) {
 	rl.mu.RLock()
 	defer rl.mu.RUnlock()
-	
+
 	attempt, exists := rl.attempts[identifier]
 	if !exists {
 		return 0, time.Time{}, false
 	}
-	
+
 	return attempt.Count, attempt.LockedUntil, true
 }
 
@@ -151,7 +151,7 @@ func (rl *RateLimiter) GetAttemptInfo(identifier string) (attempts int, lockedUn
 func (rl *RateLimiter) cleanupLoop() {
 	ticker := time.NewTicker(rl.config.CleanupInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -166,7 +166,7 @@ func (rl *RateLimiter) cleanupLoop() {
 func (rl *RateLimiter) cleanup() {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
-	
+
 	now := time.Now()
 	for id, attempt := range rl.attempts {
 		// Remove if:
@@ -190,11 +190,11 @@ func FormatLockoutMessage(remaining time.Duration) string {
 	if remaining < time.Minute {
 		return fmt.Sprintf("Too many failed attempts. Please try again in %d seconds.", int(remaining.Seconds()))
 	}
-	
+
 	minutes := int(remaining.Minutes())
 	if minutes == 1 {
 		return "Too many failed attempts. Please try again in 1 minute."
 	}
-	
+
 	return fmt.Sprintf("Too many failed attempts. Please try again in %d minutes.", minutes)
 }

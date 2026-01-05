@@ -14,7 +14,7 @@ var DB *gorm.DB
 
 func InitDB(dsn string) (*gorm.DB, error) {
 	var dialector gorm.Dialector
-	
+
 	// Determine database type from DSN
 	if strings.HasPrefix(dsn, "file:") || dsn == ":memory:" {
 		dialector = sqlite.Open(dsn)

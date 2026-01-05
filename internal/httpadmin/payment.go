@@ -11,11 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gorm.io/gorm"
-	payment "shop-bot/internal/payment/epay"
-	"shop-bot/internal/store"
 	logger "shop-bot/internal/log"
 	"shop-bot/internal/metrics"
 	"shop-bot/internal/notification"
+	payment "shop-bot/internal/payment/epay"
+	"shop-bot/internal/store"
 )
 
 // handlePaymentReturn handles the payment return page

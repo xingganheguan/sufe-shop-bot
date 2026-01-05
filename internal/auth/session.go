@@ -7,38 +7,38 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	
+
 	logger "shop-bot/internal/log"
 )
 
 var (
-	ErrSessionNotFound    = errors.New("session not found")
-	ErrSessionExpired     = errors.New("session expired")
-	ErrConcurrentLimit    = errors.New("concurrent session limit exceeded")
-	ErrAnomalousActivity  = errors.New("anomalous activity detected")
+	ErrSessionNotFound   = errors.New("session not found")
+	ErrSessionExpired    = errors.New("session expired")
+	ErrConcurrentLimit   = errors.New("concurrent session limit exceeded")
+	ErrAnomalousActivity = errors.New("anomalous activity detected")
 )
 
 // SessionInfo holds session information
 type SessionInfo struct {
-	ID          string
-	UserID      string
-	Username    string
-	Role        string
-	CreatedAt   time.Time
-	LastAccess  time.Time
-	ExpiresAt   time.Time
-	IPAddress   string
-	UserAgent   string
-	IsActive    bool
+	ID         string
+	UserID     string
+	Username   string
+	Role       string
+	CreatedAt  time.Time
+	LastAccess time.Time
+	ExpiresAt  time.Time
+	IPAddress  string
+	UserAgent  string
+	IsActive   bool
 }
 
 // SessionConfig holds session configuration
 type SessionConfig struct {
-	MaxConcurrent      int           // Max concurrent sessions per user
-	SessionTimeout     time.Duration // Session timeout
-	IdleTimeout        time.Duration // Idle timeout
-	EnableIPCheck      bool          // Enable IP address validation
-	EnableUserAgentCheck bool        // Enable user agent validation
+	MaxConcurrent        int           // Max concurrent sessions per user
+	SessionTimeout       time.Duration // Session timeout
+	IdleTimeout          time.Duration // Idle timeout
+	EnableIPCheck        bool          // Enable IP address validation
+	EnableUserAgentCheck bool          // Enable user agent validation
 }
 
 // DefaultSessionConfig returns default session configuration
@@ -55,8 +55,8 @@ func DefaultSessionConfig() *SessionConfig {
 // SessionManager manages user sessions
 type SessionManager struct {
 	config       *SessionConfig
-	sessions     map[string]*SessionInfo     // sessionID -> session
-	userSessions map[string]map[string]bool  // userID -> set of sessionIDs
+	sessions     map[string]*SessionInfo    // sessionID -> session
+	userSessions map[string]map[string]bool // userID -> set of sessionIDs
 	mu           sync.RWMutex
 	stopClean    chan bool
 }
@@ -66,17 +66,17 @@ func NewSessionManager(config *SessionConfig) *SessionManager {
 	if config == nil {
 		config = DefaultSessionConfig()
 	}
-	
+
 	sm := &SessionManager{
 		config:       config,
 		sessions:     make(map[string]*SessionInfo),
 		userSessions: make(map[string]map[string]bool),
 		stopClean:    make(chan bool),
 	}
-	
+
 	// Start cleanup goroutine
 	go sm.cleanupLoop()
-	
+
 	return sm
 }
 
@@ -84,7 +84,7 @@ func NewSessionManager(config *SessionConfig) *SessionManager {
 func (sm *SessionManager) CreateSession(userID, username, role, ipAddress, userAgent string) (*SessionInfo, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	
+
 	// Check concurrent session limit
 	if sm.config.MaxConcurrent > 0 {
 		userSessionIDs, exists := sm.userSessions[userID]
@@ -95,12 +95,12 @@ func (sm *SessionManager) CreateSession(userID, username, role, ipAddress, userA
 					activeCount++
 				}
 			}
-			
+
 			if activeCount >= sm.config.MaxConcurrent {
 				// Find and remove oldest session
 				var oldestID string
 				var oldestTime time.Time
-				
+
 				for sessionID := range userSessionIDs {
 					if session, ok := sm.sessions[sessionID]; ok && session.IsActive {
 						if oldestID == "" || session.CreatedAt.Before(oldestTime) {
@@ -109,19 +109,19 @@ func (sm *SessionManager) CreateSession(userID, username, role, ipAddress, userA
 						}
 					}
 				}
-				
+
 				if oldestID != "" {
 					sm.invalidateSessionUnsafe(oldestID)
-					logger.Warn("Session removed due to concurrent limit", 
+					logger.Warn("Session removed due to concurrent limit",
 						"userID", userID, "removedSessionID", oldestID)
 				}
 			}
 		}
 	}
-	
+
 	// Generate session ID
 	sessionID := generateSessionID()
-	
+
 	// Create session
 	now := time.Now()
 	session := &SessionInfo{
@@ -136,19 +136,19 @@ func (sm *SessionManager) CreateSession(userID, username, role, ipAddress, userA
 		UserAgent:  userAgent,
 		IsActive:   true,
 	}
-	
+
 	// Store session
 	sm.sessions[sessionID] = session
-	
+
 	// Update user sessions
 	if sm.userSessions[userID] == nil {
 		sm.userSessions[userID] = make(map[string]bool)
 	}
 	sm.userSessions[userID][sessionID] = true
-	
-	logger.Info("Session created", 
+
+	logger.Info("Session created",
 		"sessionID", sessionID, "userID", userID, "ip", ipAddress)
-	
+
 	return session, nil
 }
 
@@ -157,51 +157,51 @@ func (sm *SessionManager) ValidateSession(sessionID, ipAddress, userAgent string
 	sm.mu.RLock()
 	session, exists := sm.sessions[sessionID]
 	sm.mu.RUnlock()
-	
+
 	if !exists {
 		return nil, ErrSessionNotFound
 	}
-	
+
 	if !session.IsActive {
 		return nil, ErrSessionExpired
 	}
-	
+
 	now := time.Now()
-	
+
 	// Check if session expired
 	if now.After(session.ExpiresAt) {
 		sm.InvalidateSession(sessionID)
 		return nil, ErrSessionExpired
 	}
-	
+
 	// Check idle timeout
 	if sm.config.IdleTimeout > 0 && now.Sub(session.LastAccess) > sm.config.IdleTimeout {
 		sm.InvalidateSession(sessionID)
-		logger.Info("Session expired due to inactivity", 
+		logger.Info("Session expired due to inactivity",
 			"sessionID", sessionID, "userID", session.UserID)
 		return nil, ErrSessionExpired
 	}
-	
+
 	// Check for anomalous activity
 	if sm.config.EnableIPCheck && session.IPAddress != ipAddress {
-		logger.Warn("Session IP mismatch detected", 
+		logger.Warn("Session IP mismatch detected",
 			"sessionID", sessionID, "expectedIP", session.IPAddress, "actualIP", ipAddress)
 		// You might want to invalidate session or just log warning
 		// For now, we'll just log and continue
 	}
-	
+
 	if sm.config.EnableUserAgentCheck && session.UserAgent != userAgent {
-		logger.Warn("Session UserAgent mismatch detected", 
+		logger.Warn("Session UserAgent mismatch detected",
 			"sessionID", sessionID, "expectedUA", session.UserAgent, "actualUA", userAgent)
 		// You might want to invalidate session or just log warning
 		// For now, we'll just log and continue
 	}
-	
+
 	// Update last access time
 	sm.mu.Lock()
 	session.LastAccess = now
 	sm.mu.Unlock()
-	
+
 	return session, nil
 }
 
@@ -209,7 +209,7 @@ func (sm *SessionManager) ValidateSession(sessionID, ipAddress, userAgent string
 func (sm *SessionManager) InvalidateSession(sessionID string) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	
+
 	sm.invalidateSessionUnsafe(sessionID)
 }
 
@@ -219,9 +219,9 @@ func (sm *SessionManager) invalidateSessionUnsafe(sessionID string) {
 	if !exists {
 		return
 	}
-	
+
 	session.IsActive = false
-	
+
 	// Remove from user sessions
 	if userSessions, ok := sm.userSessions[session.UserID]; ok {
 		delete(userSessions, sessionID)
@@ -229,11 +229,11 @@ func (sm *SessionManager) invalidateSessionUnsafe(sessionID string) {
 			delete(sm.userSessions, session.UserID)
 		}
 	}
-	
+
 	// Remove session
 	delete(sm.sessions, sessionID)
-	
-	logger.Info("Session invalidated", 
+
+	logger.Info("Session invalidated",
 		"sessionID", sessionID, "userID", session.UserID)
 }
 
@@ -241,16 +241,16 @@ func (sm *SessionManager) invalidateSessionUnsafe(sessionID string) {
 func (sm *SessionManager) InvalidateUserSessions(userID string) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	
+
 	userSessionIDs, exists := sm.userSessions[userID]
 	if !exists {
 		return
 	}
-	
+
 	for sessionID := range userSessionIDs {
 		sm.invalidateSessionUnsafe(sessionID)
 	}
-	
+
 	logger.Info("All user sessions invalidated", "userID", userID)
 }
 
@@ -258,14 +258,14 @@ func (sm *SessionManager) InvalidateUserSessions(userID string) {
 func (sm *SessionManager) GetUserSessions(userID string) []*SessionInfo {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
-	
+
 	var sessions []*SessionInfo
-	
+
 	userSessionIDs, exists := sm.userSessions[userID]
 	if !exists {
 		return sessions
 	}
-	
+
 	for sessionID := range userSessionIDs {
 		if session, ok := sm.sessions[sessionID]; ok && session.IsActive {
 			// Create copy to avoid data races
@@ -273,7 +273,7 @@ func (sm *SessionManager) GetUserSessions(userID string) []*SessionInfo {
 			sessions = append(sessions, &sessionCopy)
 		}
 	}
-	
+
 	return sessions
 }
 
@@ -281,14 +281,14 @@ func (sm *SessionManager) GetUserSessions(userID string) []*SessionInfo {
 func (sm *SessionManager) GetActiveSessionCount() int {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
-	
+
 	count := 0
 	for _, session := range sm.sessions {
 		if session.IsActive {
 			count++
 		}
 	}
-	
+
 	return count
 }
 
@@ -296,7 +296,7 @@ func (sm *SessionManager) GetActiveSessionCount() int {
 func (sm *SessionManager) cleanupLoop() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -311,21 +311,21 @@ func (sm *SessionManager) cleanupLoop() {
 func (sm *SessionManager) cleanup() {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	
+
 	now := time.Now()
 	var toRemove []string
-	
+
 	for sessionID, session := range sm.sessions {
 		if !session.IsActive || now.After(session.ExpiresAt) ||
 			(sm.config.IdleTimeout > 0 && now.Sub(session.LastAccess) > sm.config.IdleTimeout) {
 			toRemove = append(toRemove, sessionID)
 		}
 	}
-	
+
 	for _, sessionID := range toRemove {
 		sm.invalidateSessionUnsafe(sessionID)
 	}
-	
+
 	if len(toRemove) > 0 {
 		logger.Debug("Session cleanup completed", "removed", len(toRemove))
 	}

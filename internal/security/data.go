@@ -17,9 +17,9 @@ import (
 )
 
 var (
-	ErrInvalidInput      = errors.New("invalid input")
-	ErrDecryptionFailed  = errors.New("decryption failed")
-	ErrEncryptionFailed  = errors.New("encryption failed")
+	ErrInvalidInput     = errors.New("invalid input")
+	ErrDecryptionFailed = errors.New("decryption failed")
+	ErrEncryptionFailed = errors.New("encryption failed")
 )
 
 // DataSecurity provides data encryption and validation
@@ -37,10 +37,10 @@ func NewDataSecurity(key string) (*DataSecurity, error) {
 		}
 		key = hex.EncodeToString(keyBytes)
 	}
-	
+
 	// Ensure key is 32 bytes
 	hash := sha256.Sum256([]byte(key))
-	
+
 	return &DataSecurity{
 		encryptionKey: hash[:],
 	}, nil
@@ -52,22 +52,22 @@ func (ds *DataSecurity) Encrypt(plaintext string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrEncryptionFailed, err)
 	}
-	
+
 	// Create GCM mode
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrEncryptionFailed, err)
 	}
-	
+
 	// Create nonce
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return "", fmt.Errorf("%w: %v", ErrEncryptionFailed, err)
 	}
-	
+
 	// Encrypt
 	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
-	
+
 	// Encode to base64
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
@@ -79,32 +79,32 @@ func (ds *DataSecurity) Decrypt(ciphertext string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrDecryptionFailed, err)
 	}
-	
+
 	block, err := aes.NewCipher(ds.encryptionKey)
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrDecryptionFailed, err)
 	}
-	
+
 	// Create GCM mode
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrDecryptionFailed, err)
 	}
-	
+
 	// Extract nonce
 	nonceSize := gcm.NonceSize()
 	if len(data) < nonceSize {
 		return "", fmt.Errorf("%w: ciphertext too short", ErrDecryptionFailed)
 	}
-	
+
 	nonce, ciphertextBytes := data[:nonceSize], data[nonceSize:]
-	
+
 	// Decrypt
 	plaintext, err := gcm.Open(nil, nonce, ciphertextBytes, nil)
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrDecryptionFailed, err)
 	}
-	
+
 	return string(plaintext), nil
 }
 
@@ -134,12 +134,12 @@ func ValidatePhoneNumber(phone string) error {
 		}
 		return -1
 	}, phone)
-	
+
 	// Check length (basic validation)
 	if len(cleaned) < 10 || len(cleaned) > 15 {
 		return fmt.Errorf("%w: invalid phone number length", ErrInvalidInput)
 	}
-	
+
 	return nil
 }
 
@@ -149,15 +149,15 @@ func ValidateURL(rawURL string) error {
 	if err != nil {
 		return fmt.Errorf("%w: invalid URL format", ErrInvalidInput)
 	}
-	
+
 	if u.Scheme == "" || u.Host == "" {
 		return fmt.Errorf("%w: URL must have scheme and host", ErrInvalidInput)
 	}
-	
+
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return fmt.Errorf("%w: only HTTP(S) URLs are allowed", ErrInvalidInput)
 	}
-	
+
 	return nil
 }
 
@@ -165,10 +165,10 @@ func ValidateURL(rawURL string) error {
 func SanitizeInput(input string) string {
 	// Remove null bytes
 	input = strings.ReplaceAll(input, "\x00", "")
-	
+
 	// Trim whitespace
 	input = strings.TrimSpace(input)
-	
+
 	// Remove control characters
 	sanitized := strings.Map(func(r rune) rune {
 		if r < 32 && r != '\t' && r != '\n' && r != '\r' {
@@ -176,7 +176,7 @@ func SanitizeInput(input string) string {
 		}
 		return r
 	}, input)
-	
+
 	return sanitized
 }
 
@@ -235,14 +235,14 @@ func ValidateNoSQL(input string) error {
 		"xp_.*",
 		"sp_.*",
 	}
-	
+
 	for _, pattern := range sqlPatterns {
 		matched, err := regexp.MatchString(pattern, input)
 		if err == nil && matched {
 			return fmt.Errorf("%w: potential SQL injection detected", ErrInvalidInput)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -267,14 +267,14 @@ func ValidateNoXSS(input string) error {
 		"vbscript:",
 		"data:text/html",
 	}
-	
+
 	lowerInput := strings.ToLower(input)
 	for _, pattern := range xssPatterns {
 		if strings.Contains(lowerInput, pattern) {
 			return fmt.Errorf("%w: potential XSS detected", ErrInvalidInput)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -288,12 +288,12 @@ func EscapeHTML(input string) string {
 		"'":  "&#39;",
 		"/":  "&#x2F;",
 	}
-	
+
 	output := input
 	for old, new := range replacements {
 		output = strings.ReplaceAll(output, old, new)
 	}
-	
+
 	return output
 }
 
@@ -302,11 +302,11 @@ func MaskSensitiveData(data string, visibleChars int) string {
 	if len(data) <= visibleChars {
 		return strings.Repeat("*", len(data))
 	}
-	
+
 	if visibleChars <= 0 {
 		return strings.Repeat("*", len(data))
 	}
-	
+
 	return data[:visibleChars] + strings.Repeat("*", len(data)-visibleChars)
 }
 
@@ -316,22 +316,22 @@ func MaskEmail(email string) string {
 	if len(parts) != 2 {
 		return MaskSensitiveData(email, 3)
 	}
-	
+
 	username := parts[0]
 	domain := parts[1]
-	
+
 	if len(username) <= 3 {
 		username = strings.Repeat("*", len(username))
 	} else {
 		username = username[:2] + strings.Repeat("*", len(username)-2)
 	}
-	
+
 	domainParts := strings.Split(domain, ".")
 	if len(domainParts) >= 2 {
 		domainParts[0] = domainParts[0][:1] + strings.Repeat("*", len(domainParts[0])-1)
 		domain = strings.Join(domainParts, ".")
 	}
-	
+
 	return username + "@" + domain
 }
 
@@ -341,6 +341,6 @@ func MaskPhoneNumber(phone string) string {
 	if len(phone) <= 4 {
 		return strings.Repeat("*", len(phone))
 	}
-	
+
 	return strings.Repeat("*", len(phone)-4) + phone[len(phone)-4:]
 }

@@ -23,7 +23,7 @@ func (s *Server) handleGetAdminTelegram(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"telegram_id": admin.TelegramID,
+		"telegram_id":           admin.TelegramID,
 		"receive_notifications": admin.ReceiveNotifications,
 	})
 }
@@ -46,7 +46,7 @@ func (s *Server) handleSetAdminTelegram(c *gin.Context) {
 
 	// Update admin telegram ID
 	updates := map[string]interface{}{
-		"telegram_id": req.TelegramID,
+		"telegram_id":           req.TelegramID,
 		"receive_notifications": true,
 	}
 
@@ -57,8 +57,8 @@ func (s *Server) handleSetAdminTelegram(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Telegram ID updated successfully",
+		"success":     true,
+		"message":     "Telegram ID updated successfully",
 		"telegram_id": req.TelegramID,
 	})
 }

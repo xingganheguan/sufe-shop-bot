@@ -12,12 +12,12 @@ func Init() {
 	config.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	config.OutputPaths = []string{"stdout"}
 	config.ErrorOutputPaths = []string{"stderr"}
-	
+
 	l, err := config.Build()
 	if err != nil {
 		panic(err)
 	}
-	
+
 	log = l.Sugar()
 }
 

@@ -3,10 +3,10 @@ package notification
 import (
 	"fmt"
 	"strings"
-	
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	logger "shop-bot/internal/log"
 	"shop-bot/internal/config"
+	logger "shop-bot/internal/log"
 )
 
 // TelegramChannel implements the Channel interface for Telegram notifications
@@ -28,26 +28,26 @@ func (t *TelegramChannel) Send(notification *Notification) error {
 	if t.bot == nil {
 		return fmt.Errorf("telegram bot not initialized")
 	}
-	
+
 	// Get message based on notification type
 	message := t.formatMessage(notification)
 	if message == "" {
 		return fmt.Errorf("empty message for notification type: %s", notification.Type)
 	}
-	
+
 	// Send to all admin chat IDs
 	adminIDs := t.config.GetAdminTelegramIDs()
 	if len(adminIDs) == 0 {
 		return fmt.Errorf("no admin telegram IDs configured")
 	}
-	
+
 	var lastError error
 	successCount := 0
-	
+
 	for _, adminID := range adminIDs {
 		msg := tgbotapi.NewMessage(adminID, message)
 		msg.ParseMode = "MarkdownV2"
-		
+
 		if _, err := t.bot.Send(msg); err != nil {
 			logger.Error("Failed to send notification to admin",
 				"admin_id", adminID,
@@ -60,12 +60,12 @@ func (t *TelegramChannel) Send(notification *Notification) error {
 				"type", notification.Type)
 		}
 	}
-	
+
 	// Return error only if all sends failed
 	if successCount == 0 && lastError != nil {
 		return fmt.Errorf("failed to send to any admin: %w", lastError)
 	}
-	
+
 	return nil
 }
 
@@ -87,7 +87,7 @@ func (t *TelegramChannel) formatMessage(notification *Notification) string {
 		config: t.config,
 		db:     nil, // We don't need DB for formatting
 	}
-	
+
 	// Reuse the existing build methods from service.go
 	switch notification.Type {
 	case EventNewOrder:

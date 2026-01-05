@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	ErrGroupNotFound    = errors.New("group not found")
-	ErrGroupExists      = errors.New("group already registered")
-	ErrNotGroupAdmin    = errors.New("user is not group admin")
+	ErrGroupNotFound = errors.New("group not found")
+	ErrGroupExists   = errors.New("group already registered")
+	ErrNotGroupAdmin = errors.New("user is not group admin")
 )
 
 // RegisterGroup registers a new group
@@ -66,14 +66,14 @@ func GetActiveGroups(db *gorm.DB) ([]Group, error) {
 func GetGroupsForBroadcast(db *gorm.DB, notificationType string) ([]Group, error) {
 	var groups []Group
 	query := db.Where("is_active = ?", true)
-	
+
 	switch notificationType {
 	case "stock_update":
 		query = query.Where("notify_stock = ?", true)
 	case "promotion":
 		query = query.Where("notify_promo = ?", true)
 	}
-	
+
 	err := query.Find(&groups).Error
 	return groups, err
 }
@@ -121,7 +121,7 @@ func CreateBroadcastMessage(db *gorm.DB, msgType, content, targetType string, cr
 		Status:      "pending",
 		CreatedByID: createdByID,
 	}
-	
+
 	// Calculate total recipients
 	switch targetType {
 	case "all":
@@ -138,11 +138,11 @@ func CreateBroadcastMessage(db *gorm.DB, msgType, content, targetType string, cr
 		db.Model(&Group{}).Where("is_active = ?", true).Count(&count)
 		msg.TotalRecipients = int(count)
 	}
-	
+
 	if err := db.Create(msg).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return msg, nil
 }
 
@@ -151,7 +151,7 @@ func UpdateBroadcastStatus(db *gorm.DB, broadcastID uint, status string) error {
 	updates := map[string]interface{}{
 		"status": status,
 	}
-	
+
 	if status == "sending" {
 		now := time.Now()
 		updates["started_at"] = &now
@@ -159,7 +159,7 @@ func UpdateBroadcastStatus(db *gorm.DB, broadcastID uint, status string) error {
 		now := time.Now()
 		updates["completed_at"] = &now
 	}
-	
+
 	return db.Model(&BroadcastMessage{}).
 		Where("id = ?", broadcastID).
 		Updates(updates).Error
@@ -171,10 +171,10 @@ func IncrementBroadcastCount(db *gorm.DB, broadcastID uint, sent bool) error {
 	if !sent {
 		field = "failed_count"
 	}
-	
+
 	return db.Model(&BroadcastMessage{}).
 		Where("id = ?", broadcastID).
-		UpdateColumn(field, gorm.Expr(field + " + ?", 1)).Error
+		UpdateColumn(field, gorm.Expr(field+" + ?", 1)).Error
 }
 
 // LogBroadcastAttempt logs a broadcast send attempt
@@ -195,7 +195,7 @@ func GetGroupStats(db *gorm.DB) (total, active int64, err error) {
 	if err != nil {
 		return
 	}
-	
+
 	err = db.Model(&Group{}).Where("is_active = ?", true).Count(&active).Error
 	return
 }

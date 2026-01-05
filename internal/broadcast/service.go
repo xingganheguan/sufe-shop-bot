@@ -8,7 +8,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gorm.io/gorm"
-	
+
 	"shop-bot/internal/bot/messages"
 	logger "shop-bot/internal/log"
 	"shop-bot/internal/store"
@@ -141,17 +141,17 @@ func (s *Service) sendToGroups(ctx context.Context, broadcast *store.BroadcastMe
 func (s *Service) sendToUser(ctx context.Context, broadcast *store.BroadcastMessage, user store.User) {
 	// Get user language
 	lang := messages.GetUserLanguage(user.Language, "")
-	
+
 	// Format message based on type
 	content := s.formatMessage(broadcast, lang)
-	
+
 	msg := tgbotapi.NewMessage(user.TgUserID, content)
 	msg.ParseMode = "Markdown"
-	
+
 	_, err := s.bot.Send(msg)
 	if err != nil {
-		logger.Error("Failed to send broadcast to user", 
-			"user_id", user.TgUserID, 
+		logger.Error("Failed to send broadcast to user",
+			"user_id", user.TgUserID,
 			"error", err,
 		)
 		store.IncrementBroadcastCount(s.db, broadcast.ID, false)
@@ -160,7 +160,7 @@ func (s *Service) sendToUser(ctx context.Context, broadcast *store.BroadcastMess
 		store.IncrementBroadcastCount(s.db, broadcast.ID, true)
 		store.LogBroadcastAttempt(s.db, broadcast.ID, "user", user.TgUserID, "sent", "")
 	}
-	
+
 	// Rate limiting
 	time.Sleep(50 * time.Millisecond)
 }
@@ -169,17 +169,17 @@ func (s *Service) sendToUser(ctx context.Context, broadcast *store.BroadcastMess
 func (s *Service) sendToGroup(ctx context.Context, broadcast *store.BroadcastMessage, group store.Group) {
 	// Get group language
 	lang := messages.GetUserLanguage(group.Language, "")
-	
+
 	// Format message based on type
 	content := s.formatMessage(broadcast, lang)
-	
+
 	msg := tgbotapi.NewMessage(group.TgGroupID, content)
 	msg.ParseMode = "Markdown"
-	
+
 	_, err := s.bot.Send(msg)
 	if err != nil {
-		logger.Error("Failed to send broadcast to group", 
-			"group_id", group.TgGroupID, 
+		logger.Error("Failed to send broadcast to group",
+			"group_id", group.TgGroupID,
 			"error", err,
 		)
 		store.IncrementBroadcastCount(s.db, broadcast.ID, false)
@@ -188,7 +188,7 @@ func (s *Service) sendToGroup(ctx context.Context, broadcast *store.BroadcastMes
 		store.IncrementBroadcastCount(s.db, broadcast.ID, true)
 		store.LogBroadcastAttempt(s.db, broadcast.ID, "group", group.TgGroupID, "sent", "")
 	}
-	
+
 	// Rate limiting
 	time.Sleep(50 * time.Millisecond)
 }
@@ -196,7 +196,7 @@ func (s *Service) sendToGroup(ctx context.Context, broadcast *store.BroadcastMes
 // formatMessage formats broadcast message based on type and language
 func (s *Service) formatMessage(broadcast *store.BroadcastMessage, lang string) string {
 	msgManager := messages.GetManager()
-	
+
 	// Add header based on broadcast type
 	var header string
 	switch broadcast.Type {
@@ -209,28 +209,28 @@ func (s *Service) formatMessage(broadcast *store.BroadcastMessage, lang string) 
 	default:
 		header = msgManager.Get(lang, "broadcast_message")
 	}
-	
+
 	return fmt.Sprintf("%s\n\n%s", header, broadcast.Content)
 }
 
 // BroadcastStockUpdate sends stock update notification
 func (s *Service) BroadcastStockUpdate(productName string, newStock int) error {
 	msgManager := messages.GetManager()
-	
+
 	// Create content in multiple languages
 	contentZh := msgManager.Format("zh", "stock_update_content", map[string]interface{}{
 		"ProductName": productName,
 		"Stock":       newStock,
 	})
-	
+
 	contentEn := msgManager.Format("en", "stock_update_content", map[string]interface{}{
 		"ProductName": productName,
 		"Stock":       newStock,
 	})
-	
+
 	// Combine content
 	content := fmt.Sprintf("%s\n\n%s", contentZh, contentEn)
-	
+
 	// Send broadcast
 	return s.SendBroadcast(context.Background(), BroadcastOptions{
 		Type:       "stock_update",

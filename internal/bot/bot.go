@@ -10,29 +10,29 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	logger "shop-bot/internal/log"
-	"shop-bot/internal/store"
-	"shop-bot/internal/payment/epay"
-	"shop-bot/internal/config"
-	"shop-bot/internal/bot/messages"
-	"shop-bot/internal/metrics"
-	"shop-bot/internal/broadcast"
-	"shop-bot/internal/notification"
 	"gorm.io/gorm"
+	"shop-bot/internal/bot/messages"
+	"shop-bot/internal/broadcast"
+	"shop-bot/internal/config"
+	logger "shop-bot/internal/log"
+	"shop-bot/internal/metrics"
+	"shop-bot/internal/notification"
+	"shop-bot/internal/payment/epay"
+	"shop-bot/internal/store"
 )
 
 type Bot struct {
-	api       *tgbotapi.BotAPI
-	db        *gorm.DB
-	epay      *epay.Client
-	config    *config.Config
-	msg       *messages.Manager
-	broadcast *broadcast.Service
-	notification *notification.Service
+	api           *tgbotapi.BotAPI
+	db            *gorm.DB
+	epay          *epay.Client
+	config        *config.Config
+	msg           *messages.Manager
+	broadcast     *broadcast.Service
+	notification  *notification.Service
 	ticketService TicketService // Remove pointer - interface should not be pointer
-	
+
 	// User state management
-	userStates     map[int64]string
+	userStates      map[int64]string
 	userStatesMutex sync.RWMutex
 }
 
@@ -63,19 +63,19 @@ func New(token string, db *gorm.DB, cfg *config.Config) (*Bot, error) {
 			"has_key", cfg.EpayKey != "",
 			"has_gateway", cfg.EpayGateway != "")
 	}
-	
+
 	// Initialize notification service
 	notificationService := notification.NewService(api, cfg, db)
 
 	return &Bot{
-		api:    api,
-		db:     db,
-		epay:   epayClient,
-		config: cfg,
-		msg:    messages.GetManager(),
-		broadcast: broadcast.NewService(db, api),
+		api:          api,
+		db:           db,
+		epay:         epayClient,
+		config:       cfg,
+		msg:          messages.GetManager(),
+		broadcast:    broadcast.NewService(db, api),
 		notification: notificationService,
-		userStates: make(map[int64]string),
+		userStates:   make(map[int64]string),
 	}, nil
 }
 
@@ -116,7 +116,6 @@ func (b *Bot) startPolling(ctx context.Context) error {
 	}
 }
 
-
 // HandleWebhookUpdate handles webhook updates
 func (b *Bot) HandleWebhookUpdate(update tgbotapi.Update) {
 	b.handleUpdate(update)
@@ -127,14 +126,14 @@ func (b *Bot) handleUpdate(update tgbotapi.Update) {
 	logger.Info("Processing update", "update_id", update.UpdateID,
 		"has_message", update.Message != nil,
 		"has_callback", update.CallbackQuery != nil)
-	
+
 	// Handle callback queries (inline keyboard buttons)
 	if update.CallbackQuery != nil {
 		metrics.BotMessagesReceived.WithLabelValues("callback").Inc()
 		b.handleCallbackQuery(update.CallbackQuery)
 		return
 	}
-	
+
 	// Handle regular messages
 	if update.Message == nil {
 		return
@@ -156,7 +155,7 @@ func (b *Bot) handleUpdate(update tgbotapi.Update) {
 		}
 		return
 	}
-	
+
 	// Handle text messages (ReplyKeyboard buttons)
 	if update.Message.Text != "" {
 		metrics.BotMessagesReceived.WithLabelValues("text").Inc()
@@ -173,19 +172,19 @@ func (b *Bot) handleStart(message *tgbotapi.Message) {
 		logger.Error("Failed to get/create user", "error", err, "tg_user_id", message.From.ID)
 		return
 	}
-	
+
 	// If it's a new user, send notification to admins
 	if isNew && b.notification != nil {
 		b.notification.NotifyAdmins(notification.EventNewUser, map[string]interface{}{
-			"user_id":   user.ID,
+			"user_id":    user.ID,
 			"tg_user_id": user.TgUserID,
-			"username":  user.Username,
+			"username":   user.Username,
 		})
 	}
-	
+
 	// Determine user language
 	lang := messages.GetUserLanguage(user.Language, langCode)
-	
+
 	// Update user language if needed
 	if user.Language == "" && langCode != "" {
 		detectedLang := "en"
@@ -196,7 +195,7 @@ func (b *Bot) handleStart(message *tgbotapi.Message) {
 		user.Language = detectedLang
 		lang = detectedLang
 	}
-	
+
 	// Create reply keyboard with localized buttons
 	keyboard := tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
@@ -212,14 +211,14 @@ func (b *Bot) handleStart(message *tgbotapi.Message) {
 			tgbotapi.NewKeyboardButton(b.msg.Get(lang, "btn_support")),
 		),
 	)
-	
+
 	msg := tgbotapi.NewMessage(message.Chat.ID, b.msg.Get(lang, "start_title"))
 	msg.ReplyMarkup = keyboard
-	
+
 	if _, err := b.api.Send(msg); err != nil {
 		logger.Error("Failed to send message", "error", err, "chat_id", message.Chat.ID)
 	}
-	
+
 	logger.Info("User started bot", "user_id", user.ID, "tg_user_id", user.TgUserID)
 }
 
@@ -372,7 +371,7 @@ func (b *Bot) handleBuy(message *tgbotapi.Message) {
 	// Get user for language
 	user, _ := store.GetOrCreateUser(b.db, message.From.ID, message.From.UserName)
 	lang := messages.GetUserLanguage(user.Language, message.From.LanguageCode)
-	
+
 	// Get active products
 	products, err := store.GetActiveProducts(b.db)
 	if err != nil {
@@ -380,16 +379,16 @@ func (b *Bot) handleBuy(message *tgbotapi.Message) {
 		b.sendError(message.Chat.ID, b.msg.Format(lang, "failed_to_load", map[string]string{"Item": "products"}))
 		return
 	}
-	
+
 	if len(products) == 0 {
 		msg := tgbotapi.NewMessage(message.Chat.ID, b.msg.Get(lang, "no_products"))
 		b.api.Send(msg)
 		return
 	}
-	
+
 	// Create inline keyboard with products
 	var rows [][]tgbotapi.InlineKeyboardButton
-	
+
 	for _, product := range products {
 		// Get available stock
 		stock, err := store.CountAvailableCodes(b.db, product.ID)
@@ -397,29 +396,29 @@ func (b *Bot) handleBuy(message *tgbotapi.Message) {
 			logger.Error("Failed to count stock", "error", err, "product_id", product.ID)
 			stock = 0
 		}
-		
+
 		// Format button text: "Name - $Price (Stock)"
 		// Get currency symbol
 		_, currencySymbol := store.GetCurrencySettings(b.db, b.config)
-		
-		buttonText := fmt.Sprintf("%s - %s%.2f (%d)", 
-			product.Name, 
+
+		buttonText := fmt.Sprintf("%s - %s%.2f (%d)",
+			product.Name,
 			currencySymbol,
-			float64(product.PriceCents)/100, 
+			float64(product.PriceCents)/100,
 			stock,
 		)
-		
+
 		callbackData := fmt.Sprintf("buy:%d", product.ID)
-		
+
 		button := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)
 		rows = append(rows, []tgbotapi.InlineKeyboardButton{button})
 	}
-	
+
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
-	
+
 	msg := tgbotapi.NewMessage(message.Chat.ID, b.msg.Get(lang, "buy_tips"))
 	msg.ReplyMarkup = keyboard
-	
+
 	if _, err := b.api.Send(msg); err != nil {
 		logger.Error("Failed to send product list", "error", err)
 	}
@@ -431,7 +430,7 @@ func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery) {
 	if _, err := b.api.Request(callbackConfig); err != nil {
 		logger.Error("Failed to answer callback", "error", err)
 	}
-	
+
 	// Parse callback data
 	if strings.HasPrefix(callback.Data, "buy:") {
 		productIDStr := strings.TrimPrefix(callback.Data, "buy:")
@@ -440,7 +439,7 @@ func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery) {
 			logger.Error("Invalid product ID", "error", err, "data", callback.Data)
 			return
 		}
-		
+
 		b.handleBuyProduct(callback, uint(productID))
 	} else if strings.HasPrefix(callback.Data, "confirm_buy:") {
 		// Format: confirm_buy:productID:useBalance(1/0)
@@ -579,12 +578,12 @@ func (b *Bot) handleBuyProduct(callback *tgbotapi.CallbackQuery, productID uint)
 		b.sendError(callback.Message.Chat.ID, b.msg.Get(lang, "failed_to_process"))
 		return
 	}
-	
+
 	lang := messages.GetUserLanguage(user.Language, callback.From.LanguageCode)
-	
+
 	// Get currency symbol
 	_, currencySymbol := store.GetCurrencySettings(b.db, b.config)
-	
+
 	// Get product
 	product, err := store.GetProduct(b.db, productID)
 	if err != nil {
@@ -592,27 +591,27 @@ func (b *Bot) handleBuyProduct(callback *tgbotapi.CallbackQuery, productID uint)
 		b.sendError(callback.Message.Chat.ID, b.msg.Get(lang, "product_not_found"))
 		return
 	}
-	
+
 	// Check stock
 	stock, err := store.CountAvailableCodes(b.db, productID)
 	if err != nil || stock == 0 {
 		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, b.msg.Get(lang, "out_of_stock"))
 		b.api.Send(msg)
-		
+
 		// Update the inline keyboard to reflect new stock
 		go b.UpdateInlineStock(callback.Message.Chat.ID, callback.Message.MessageID)
 		return
 	}
-	
+
 	// Get user balance
 	balance, _ := store.GetUserBalance(b.db, user.ID)
-	
+
 	// Check if user has balance and offer to use it
 	if balance > 0 {
 		// Calculate how much balance can be used
 		balanceUsed := 0
 		paymentAmount := product.PriceCents
-		
+
 		if balance >= product.PriceCents {
 			balanceUsed = product.PriceCents
 			paymentAmount = 0
@@ -620,17 +619,17 @@ func (b *Bot) handleBuyProduct(callback *tgbotapi.CallbackQuery, productID uint)
 			balanceUsed = balance
 			paymentAmount = product.PriceCents - balance
 		}
-		
+
 		// Ask user if they want to use balance
 		balanceMsg := b.msg.Format(lang, "use_balance_prompt", map[string]interface{}{
-			"Currency": currencySymbol,
-			"Balance": fmt.Sprintf("%.2f", float64(balance)/100),
-			"Product": product.Name,
-			"Price": fmt.Sprintf("%.2f", float64(product.PriceCents)/100),
+			"Currency":    currencySymbol,
+			"Balance":     fmt.Sprintf("%.2f", float64(balance)/100),
+			"Product":     product.Name,
+			"Price":       fmt.Sprintf("%.2f", float64(product.PriceCents)/100),
 			"BalanceUsed": fmt.Sprintf("%.2f", float64(balanceUsed)/100),
-			"ToPay": fmt.Sprintf("%.2f", float64(paymentAmount)/100),
+			"ToPay":       fmt.Sprintf("%.2f", float64(paymentAmount)/100),
 		})
-		
+
 		// Create inline keyboard for balance usage choice
 		keyboard := tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
@@ -638,13 +637,13 @@ func (b *Bot) handleBuyProduct(callback *tgbotapi.CallbackQuery, productID uint)
 				tgbotapi.NewInlineKeyboardButtonData(b.msg.Get(lang, "use_balance_no"), fmt.Sprintf("confirm_buy:%d:0", productID)),
 			),
 		)
-		
+
 		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, balanceMsg)
 		msg.ReplyMarkup = keyboard
 		b.api.Send(msg)
 		return
 	}
-	
+
 	// No balance, proceed directly to create order
 	b.handleConfirmBuy(callback, productID, false)
 }
@@ -676,7 +675,7 @@ func (b *Bot) handleConfirmBuy(callback *tgbotapi.CallbackQuery, productID uint,
 	} else {
 		order, err = store.CreateOrder(b.db, user.ID, product.ID, product.PriceCents)
 	}
-	
+
 	if err != nil {
 		logger.Error("Failed to create order", "error", err)
 		b.sendError(callback.Message.Chat.ID, b.msg.Get(lang, "failed_to_create_order"))
@@ -685,7 +684,7 @@ func (b *Bot) handleConfirmBuy(callback *tgbotapi.CallbackQuery, productID uint,
 
 	// Track order created metric
 	metrics.OrdersCreated.Inc()
-	
+
 	// Get currency symbol
 	_, currencySymbol := store.GetCurrencySettings(b.db, b.config)
 
@@ -696,10 +695,10 @@ func (b *Bot) handleConfirmBuy(callback *tgbotapi.CallbackQuery, productID uint,
 		code, err := store.ClaimOneCodeTx(ctx, b.db, product.ID, order.ID)
 		if err != nil {
 			logger.Error("Failed to claim code", "error", err, "order_id", order.ID)
-			
+
 			// Update order status to failed_delivery
 			b.db.Model(order).Update("status", "failed_delivery")
-			
+
 			// Send no stock message
 			noStockMsg := b.msg.Format(lang, "no_stock", map[string]interface{}{
 				"OrderID":     order.ID,
@@ -713,7 +712,7 @@ func (b *Bot) handleConfirmBuy(callback *tgbotapi.CallbackQuery, productID uint,
 		// Update order status to delivered
 		now := time.Now()
 		b.db.Model(order).Updates(map[string]interface{}{
-			"status": "delivered",
+			"status":       "delivered",
 			"delivered_at": &now,
 		})
 
@@ -723,11 +722,11 @@ func (b *Bot) handleConfirmBuy(callback *tgbotapi.CallbackQuery, productID uint,
 			"ProductName": product.Name,
 			"Code":        code,
 		})
-		
+
 		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, deliveryMsg)
 		msg.ParseMode = "Markdown"
 		b.api.Send(msg)
-		
+
 		logger.Info("Order paid with balance and delivered", "order_id", order.ID, "user_id", user.ID, "product_id", product.ID)
 		return
 	}
@@ -748,16 +747,16 @@ func (b *Bot) handleConfirmBuy(callback *tgbotapi.CallbackQuery, productID uint,
 			"Price":       fmt.Sprintf("%.2f", float64(order.PaymentAmount)/100),
 			"OrderID":     order.ID,
 		})
-		
+
 		if order.BalanceUsed > 0 {
 			orderMsg += "\n" + b.msg.Format(lang, "balance_used_info", map[string]interface{}{
 				"Currency":    currencySymbol,
 				"BalanceUsed": fmt.Sprintf("%.2f", float64(order.BalanceUsed)/100),
 			})
 		}
-		
+
 		orderMsg += "\n\n" + b.msg.Get(lang, "payment_not_configured")
-		
+
 		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, orderMsg)
 		b.api.Send(msg)
 		return
@@ -783,7 +782,7 @@ func (b *Bot) handleConfirmBuy(callback *tgbotapi.CallbackQuery, productID uint,
 		"Price":       fmt.Sprintf("%.2f", float64(order.PaymentAmount)/100),
 		"OrderID":     order.ID,
 	})
-	
+
 	if order.BalanceUsed > 0 {
 		orderMsg += "\n" + b.msg.Format(lang, "balance_used_info", map[string]interface{}{
 			"BalanceUsed": fmt.Sprintf("%.2f", float64(order.BalanceUsed)/100),
@@ -796,7 +795,7 @@ func (b *Bot) handleConfirmBuy(callback *tgbotapi.CallbackQuery, productID uint,
 			tgbotapi.NewInlineKeyboardButtonURL(b.msg.Get(lang, "pay_now"), payURL),
 		),
 	)
-	
+
 	msg := tgbotapi.NewMessage(callback.Message.Chat.ID, orderMsg)
 	msg.ReplyMarkup = keyboard
 	b.api.Send(msg)
@@ -808,18 +807,18 @@ func (b *Bot) handleDeposit(message *tgbotapi.Message) {
 	// Get user for language
 	user, _ := store.GetOrCreateUser(b.db, message.From.ID, message.From.UserName)
 	lang := messages.GetUserLanguage(user.Language, message.From.LanguageCode)
-	
+
 	// Get current balance
 	balance, _ := store.GetUserBalance(b.db, user.ID)
-	
+
 	// Get currency symbol
 	_, currencySymbol := store.GetCurrencySettings(b.db, b.config)
-	
+
 	depositMsg := b.msg.Format(lang, "deposit_info", map[string]interface{}{
 		"Currency": currencySymbol,
-		"Balance": fmt.Sprintf("%.2f", float64(balance)/100),
+		"Balance":  fmt.Sprintf("%.2f", float64(balance)/100),
 	})
-	
+
 	// Add deposit options
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -832,7 +831,7 @@ func (b *Bot) handleDeposit(message *tgbotapi.Message) {
 			tgbotapi.NewInlineKeyboardButtonData("🔢 "+b.msg.Get(lang, "custom_amount"), "deposit_custom"),
 		),
 	)
-	
+
 	msg := tgbotapi.NewMessage(message.Chat.ID, depositMsg)
 	msg.ReplyMarkup = keyboard
 	msg.ParseMode = "Markdown"
@@ -846,18 +845,18 @@ func (b *Bot) handleDepositCallback(callback *tgbotapi.CallbackQuery) {
 		logger.Error("Failed to get user", "error", err)
 		return
 	}
-	
+
 	lang := messages.GetUserLanguage(user.Language, callback.From.LanguageCode)
-	
+
 	// Get currency symbol
 	_, currencySymbol := store.GetCurrencySettings(b.db, b.config)
-	
+
 	// Check if payment is configured
 	if b.epay == nil {
 		b.api.Request(tgbotapi.NewCallback(callback.ID, b.msg.Get(lang, "payment_not_configured")))
 		return
 	}
-	
+
 	// Parse deposit amount
 	var amountCents int
 	switch callback.Data {
@@ -874,7 +873,7 @@ func (b *Bot) handleDepositCallback(callback *tgbotapi.CallbackQuery) {
 		b.userStatesMutex.Lock()
 		b.userStates[callback.From.ID] = "awaiting_deposit_amount"
 		b.userStatesMutex.Unlock()
-		
+
 		customMsg := b.msg.Get(lang, "custom_amount_instruction")
 		if customMsg == "custom_amount_instruction" {
 			customMsg = "请输入您要充值的金额（例如：30）"
@@ -888,7 +887,7 @@ func (b *Bot) handleDepositCallback(callback *tgbotapi.CallbackQuery) {
 	default:
 		return
 	}
-	
+
 	// Create a deposit order
 	order, err := store.CreateDepositOrder(b.db, user.ID, amountCents)
 	if err != nil {
@@ -896,19 +895,19 @@ func (b *Bot) handleDepositCallback(callback *tgbotapi.CallbackQuery) {
 		b.sendError(callback.Message.Chat.ID, b.msg.Get(lang, "failed_to_create_order"))
 		return
 	}
-	
+
 	// Generate payment URL with nanosecond precision to avoid duplicates
 	outTradeNo := fmt.Sprintf("D%d-%d", order.ID, time.Now().UnixNano())
-	
+
 	// Update order with out_trade_no
 	if err := b.db.Model(&store.Order{}).Where("id = ?", order.ID).Update("epay_out_trade_no", outTradeNo).Error; err != nil {
 		logger.Error("Failed to update order out_trade_no", "error", err, "order_id", order.ID)
 	}
-	
+
 	// Create payment order using submit URL (allows user to choose payment method)
 	notifyURL := fmt.Sprintf("%s/payment/epay/notify", b.config.BaseURL)
 	returnURL := fmt.Sprintf("%s/payment/return", b.config.BaseURL)
-	
+
 	// Create submit URL for payment page
 	payURL := b.epay.CreateSubmitURL(epay.CreateOrderParams{
 		OutTradeNo: outTradeNo,
@@ -918,25 +917,25 @@ func (b *Bot) handleDepositCallback(callback *tgbotapi.CallbackQuery) {
 		ReturnURL:  returnURL,
 		Param:      fmt.Sprintf("deposit_%d", user.ID),
 	})
-	
+
 	// Send payment message
 	depositMsg := b.msg.Format(lang, "deposit_order_created", map[string]interface{}{
 		"Currency": currencySymbol,
-		"Amount":  fmt.Sprintf("%.2f", float64(amountCents)/100),
-		"OrderID": order.ID,
+		"Amount":   fmt.Sprintf("%.2f", float64(amountCents)/100),
+		"OrderID":  order.ID,
 	})
-	
+
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonURL(b.msg.Get(lang, "pay_now"), payURL),
 		),
 	)
-	
+
 	msg := tgbotapi.NewMessage(callback.Message.Chat.ID, depositMsg)
 	msg.ReplyMarkup = keyboard
 	msg.ParseMode = "Markdown"
 	b.api.Send(msg)
-	
+
 	logger.Info("Deposit order created", "order_id", order.ID, "user_id", user.ID, "amount", amountCents)
 }
 
@@ -947,15 +946,15 @@ func (b *Bot) handleProfile(message *tgbotapi.Message) {
 		b.sendError(message.Chat.ID, b.msg.Format(lang, "failed_to_load", map[string]string{"Item": "profile"}))
 		return
 	}
-	
+
 	lang := messages.GetUserLanguage(user.Language, message.From.LanguageCode)
 
 	// Get user balance
 	balance, _ := store.GetUserBalance(b.db, user.ID)
-	
+
 	// Get currency symbol
 	_, currencySymbol := store.GetCurrencySettings(b.db, b.config)
-	
+
 	profileMsg := b.msg.Format(lang, "profile_info", map[string]interface{}{
 		"UserID":     user.TgUserID,
 		"Username":   user.Username,
@@ -964,7 +963,7 @@ func (b *Bot) handleProfile(message *tgbotapi.Message) {
 		"Currency":   currencySymbol,
 		"Balance":    fmt.Sprintf("%.2f", float64(balance)/100),
 	})
-	
+
 	// Add language selection button
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -974,7 +973,7 @@ func (b *Bot) handleProfile(message *tgbotapi.Message) {
 			tgbotapi.NewInlineKeyboardButtonData(b.msg.Get(lang, "view_balance_history"), "balance_history"),
 		),
 	)
-	
+
 	msg := tgbotapi.NewMessage(message.Chat.ID, b.msg.Get(lang, "profile_title")+"\n\n"+profileMsg)
 	msg.ReplyMarkup = keyboard
 	b.api.Send(msg)
@@ -1049,39 +1048,38 @@ func (b *Bot) UpdateInlineStock(chatID int64, messageID int) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Recreate inline keyboard with updated stock
 	var rows [][]tgbotapi.InlineKeyboardButton
-	
+
 	for _, product := range products {
 		stock, err := store.CountAvailableCodes(b.db, product.ID)
 		if err != nil {
 			stock = 0
 		}
-		
+
 		// Get currency symbol
 		_, currencySymbol := store.GetCurrencySettings(b.db, b.config)
-		
-		buttonText := fmt.Sprintf("%s - %s%.2f (%d)", 
-			product.Name, 
+
+		buttonText := fmt.Sprintf("%s - %s%.2f (%d)",
+			product.Name,
 			currencySymbol,
-			float64(product.PriceCents)/100, 
+			float64(product.PriceCents)/100,
 			stock,
 		)
-		
+
 		callbackData := fmt.Sprintf("buy:%d", product.ID)
 		button := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)
 		rows = append(rows, []tgbotapi.InlineKeyboardButton{button})
 	}
-	
+
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
-	
+
 	editMsg := tgbotapi.NewEditMessageReplyMarkup(chatID, messageID, keyboard)
 	_, err = b.api.Send(editMsg)
-	
+
 	return err
 }
-
 
 // GetBroadcastService returns the broadcast service
 func (b *Bot) GetBroadcastService() *broadcast.Service {
@@ -1094,12 +1092,12 @@ func (b *Bot) SetWebhook(webhookURL string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create webhook: %w", err)
 	}
-	
+
 	_, err = b.api.Request(webhook)
 	if err != nil {
 		return fmt.Errorf("failed to set webhook: %w", err)
 	}
-	
+
 	logger.Info("Webhook set successfully", "url", webhookURL)
 	return nil
 }
@@ -1109,12 +1107,12 @@ func (b *Bot) RemoveWebhook() error {
 	deleteWebhook := tgbotapi.DeleteWebhookConfig{
 		DropPendingUpdates: false,
 	}
-	
+
 	_, err := b.api.Request(deleteWebhook)
 	if err != nil {
 		return fmt.Errorf("failed to remove webhook: %w", err)
 	}
-	
+
 	logger.Info("Webhook removed successfully")
 	return nil
 }
@@ -1124,22 +1122,22 @@ func (b *Bot) handleCustomDepositAmount(message *tgbotapi.Message) {
 	b.userStatesMutex.Lock()
 	delete(b.userStates, message.From.ID)
 	b.userStatesMutex.Unlock()
-	
+
 	// Get user for language
 	user, err := store.GetOrCreateUser(b.db, message.From.ID, message.From.UserName)
 	if err != nil {
 		logger.Error("Failed to get user", "error", err)
 		return
 	}
-	
+
 	lang := messages.GetUserLanguage(user.Language, message.From.LanguageCode)
-	
+
 	// Check if payment is configured
 	if b.epay == nil {
 		b.sendError(message.Chat.ID, b.msg.Get(lang, "payment_not_configured"))
 		return
 	}
-	
+
 	// Parse amount from message
 	amountStr := strings.TrimSpace(message.Text)
 
@@ -1181,10 +1179,10 @@ func (b *Bot) handleCustomDepositAmount(message *tgbotapi.Message) {
 		b.userStatesMutex.Unlock()
 		return
 	}
-	
+
 	// Convert to cents
 	amountCents := int(amount * 100)
-	
+
 	// Check minimum and maximum limits
 	if amountCents < 100 { // Minimum $1
 		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ 最低充值金额为 1 元\n\n💡 发送 /cancel 取消操作")
@@ -1207,7 +1205,7 @@ func (b *Bot) handleCustomDepositAmount(message *tgbotapi.Message) {
 		b.userStatesMutex.Unlock()
 		return
 	}
-	
+
 	// Create a deposit order
 	order, err := store.CreateDepositOrder(b.db, user.ID, amountCents)
 	if err != nil {
@@ -1215,22 +1213,22 @@ func (b *Bot) handleCustomDepositAmount(message *tgbotapi.Message) {
 		b.sendError(message.Chat.ID, b.msg.Get(lang, "failed_to_create_order"))
 		return
 	}
-	
+
 	// Generate payment URL with nanosecond precision to avoid duplicates
 	outTradeNo := fmt.Sprintf("D%d-%d", order.ID, time.Now().UnixNano())
-	
+
 	// Update order with out_trade_no
 	if err := b.db.Model(&store.Order{}).Where("id = ?", order.ID).Update("epay_out_trade_no", outTradeNo).Error; err != nil {
 		logger.Error("Failed to update order out_trade_no", "error", err, "order_id", order.ID)
 	}
-	
+
 	// Create payment order using submit URL (allows user to choose payment method)
 	notifyURL := fmt.Sprintf("%s/payment/epay/notify", b.config.BaseURL)
 	returnURL := fmt.Sprintf("%s/payment/return", b.config.BaseURL)
-	
+
 	// Get currency symbol
 	_, currencySymbol := store.GetCurrencySettings(b.db, b.config)
-	
+
 	// Create submit URL for payment page
 	payURL := b.epay.CreateSubmitURL(epay.CreateOrderParams{
 		OutTradeNo: outTradeNo,
@@ -1240,25 +1238,25 @@ func (b *Bot) handleCustomDepositAmount(message *tgbotapi.Message) {
 		ReturnURL:  returnURL,
 		Param:      fmt.Sprintf("deposit_%d", user.ID),
 	})
-	
+
 	// Send payment message
 	depositMsg := b.msg.Format(lang, "deposit_order_created", map[string]interface{}{
 		"Currency": currencySymbol,
-		"Amount":  fmt.Sprintf("%.2f", float64(amountCents)/100),
-		"OrderID": order.ID,
+		"Amount":   fmt.Sprintf("%.2f", float64(amountCents)/100),
+		"OrderID":  order.ID,
 	})
-	
+
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonURL(b.msg.Get(lang, "pay_now"), payURL),
 		),
 	)
-	
+
 	msg := tgbotapi.NewMessage(message.Chat.ID, depositMsg)
 	msg.ReplyMarkup = keyboard
 	msg.ParseMode = "Markdown"
 	b.api.Send(msg)
-	
+
 	logger.Info("Custom deposit order created", "user_id", user.ID, "amount_cents", amountCents, "order_id", order.ID)
 }
 

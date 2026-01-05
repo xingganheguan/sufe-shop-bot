@@ -5,27 +5,27 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
-	
+
 	"golang.org/x/crypto/bcrypt"
 )
 
 var (
-	ErrPasswordTooShort = errors.New("password must be at least 8 characters long")
-	ErrPasswordNoUpper  = errors.New("password must contain at least one uppercase letter")
-	ErrPasswordNoLower  = errors.New("password must contain at least one lowercase letter")
-	ErrPasswordNoDigit  = errors.New("password must contain at least one digit")
+	ErrPasswordTooShort  = errors.New("password must be at least 8 characters long")
+	ErrPasswordNoUpper   = errors.New("password must contain at least one uppercase letter")
+	ErrPasswordNoLower   = errors.New("password must contain at least one lowercase letter")
+	ErrPasswordNoDigit   = errors.New("password must contain at least one digit")
 	ErrPasswordNoSpecial = errors.New("password must contain at least one special character")
-	ErrPasswordCommon   = errors.New("password is too common")
-	ErrPasswordInvalid  = errors.New("invalid password")
+	ErrPasswordCommon    = errors.New("password is too common")
+	ErrPasswordInvalid   = errors.New("invalid password")
 )
 
 // PasswordConfig holds password policy configuration
 type PasswordConfig struct {
-	MinLength       int
-	RequireUpper    bool
-	RequireLower    bool
-	RequireDigit    bool
-	RequireSpecial  bool
+	MinLength      int
+	RequireUpper   bool
+	RequireLower   bool
+	RequireDigit   bool
+	RequireSpecial bool
 	BcryptCost     int
 }
 
@@ -37,7 +37,7 @@ func DefaultPasswordConfig() *PasswordConfig {
 		RequireLower:   true,
 		RequireDigit:   true,
 		RequireSpecial: true,
-		BcryptCost:    bcrypt.DefaultCost,
+		BcryptCost:     bcrypt.DefaultCost,
 	}
 }
 
@@ -59,7 +59,7 @@ func (s *PasswordService) ValidatePassword(password string) error {
 	if len(password) < s.config.MinLength {
 		return ErrPasswordTooShort
 	}
-	
+
 	var hasUpper, hasLower, hasDigit, hasSpecial bool
 	for _, char := range password {
 		switch {
@@ -73,7 +73,7 @@ func (s *PasswordService) ValidatePassword(password string) error {
 			hasSpecial = true
 		}
 	}
-	
+
 	if s.config.RequireUpper && !hasUpper {
 		return ErrPasswordNoUpper
 	}
@@ -86,12 +86,12 @@ func (s *PasswordService) ValidatePassword(password string) error {
 	if s.config.RequireSpecial && !hasSpecial {
 		return ErrPasswordNoSpecial
 	}
-	
+
 	// Check common passwords
 	if isCommonPassword(password) {
 		return ErrPasswordCommon
 	}
-	
+
 	return nil
 }
 
@@ -101,12 +101,12 @@ func (s *PasswordService) HashPassword(password string) (string, error) {
 	if err := s.ValidatePassword(password); err != nil {
 		return "", err
 	}
-	
+
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), s.config.BcryptCost)
 	if err != nil {
 		return "", fmt.Errorf("failed to hash password: %w", err)
 	}
-	
+
 	return string(bytes), nil
 }
 
@@ -125,7 +125,7 @@ func (s *PasswordService) ComparePassword(hashedPassword, password string) error
 // GetPasswordStrength returns a score from 0-100 indicating password strength
 func (s *PasswordService) GetPasswordStrength(password string) int {
 	score := 0
-	
+
 	// Length score (max 30)
 	length := len(password)
 	if length >= 8 {
@@ -137,11 +137,11 @@ func (s *PasswordService) GetPasswordStrength(password string) int {
 	if length >= 16 {
 		score += 10
 	}
-	
+
 	// Character diversity score (max 40)
 	var hasUpper, hasLower, hasDigit, hasSpecial bool
 	uniqueChars := make(map[rune]bool)
-	
+
 	for _, char := range password {
 		uniqueChars[char] = true
 		switch {
@@ -155,7 +155,7 @@ func (s *PasswordService) GetPasswordStrength(password string) int {
 			hasSpecial = true
 		}
 	}
-	
+
 	if hasUpper {
 		score += 10
 	}
@@ -168,7 +168,7 @@ func (s *PasswordService) GetPasswordStrength(password string) int {
 	if hasSpecial {
 		score += 10
 	}
-	
+
 	// Uniqueness score (max 30)
 	uniqueRatio := float64(len(uniqueChars)) / float64(len(password))
 	if uniqueRatio > 0.6 {
@@ -180,12 +180,12 @@ func (s *PasswordService) GetPasswordStrength(password string) int {
 	if uniqueRatio > 0.8 {
 		score += 10
 	}
-	
+
 	// Cap at 100
 	if score > 100 {
 		score = 100
 	}
-	
+
 	return score
 }
 
@@ -199,13 +199,13 @@ func isCommonPassword(password string) bool {
 		"passw0rd", "shadow", "123123", "654321", "superman", "qazwsx",
 		"michael", "football", "password1", "password12", "password123",
 	}
-	
+
 	lowerPassword := strings.ToLower(password)
 	for _, common := range commonPasswords {
 		if lowerPassword == common {
 			return true
 		}
 	}
-	
+
 	return false
 }

@@ -34,7 +34,7 @@ func main() {
 	if err := store.SeedData(db); err != nil {
 		logger.Error("Failed to seed data", "error", err)
 	}
-	
+
 	// Fix message_templates constraint
 	logger.Info("Checking and fixing message_templates constraint...")
 	if err := db.Exec("DROP INDEX IF EXISTS idx_message_templates_code").Error; err != nil {
@@ -45,7 +45,7 @@ func main() {
 	} else {
 		logger.Info("Message templates constraint fixed successfully")
 	}
-	
+
 	// Fix orders table to allow null ProductID for deposit orders
 	logger.Info("Updating orders table to allow null ProductID...")
 	if err := db.Exec("ALTER TABLE orders ALTER COLUMN product_id DROP NOT NULL").Error; err != nil {
@@ -53,7 +53,7 @@ func main() {
 	} else {
 		logger.Info("Orders table updated successfully")
 	}
-	
+
 	// Create system_settings table if not exists
 	logger.Info("Creating system_settings table if not exists...")
 	if err := db.AutoMigrate(&store.SystemSetting{}); err != nil {
@@ -61,7 +61,7 @@ func main() {
 	} else {
 		logger.Info("System settings table ready")
 	}
-	
+
 	// Initialize default system settings
 	logger.Info("Initializing default system settings...")
 	if err := store.InitializeSettings(db); err != nil {
@@ -69,7 +69,7 @@ func main() {
 	} else {
 		logger.Info("System settings initialized")
 	}
-	
+
 	// Create default message templates
 	if err := store.CreateDefaultTemplates(db); err != nil {
 		logger.Error("Failed to create default templates", "error", err)
@@ -101,13 +101,13 @@ func main() {
 	// Graceful shutdown with timeout
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
-	
+
 	if err := application.Shutdown(shutdownCtx); err != nil {
 		logger.Error("Application shutdown error", "error", err)
 	}
 
 	// Wait for all components to finish
 	application.Wait()
-	
+
 	logger.Info("Shutdown complete")
 }

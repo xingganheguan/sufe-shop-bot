@@ -80,12 +80,12 @@ func (c *Client) CreateOrder(params CreateOrderParams) (*CreateOrderResponse, er
 	if params.Device == "" {
 		params.Device = DevicePC
 	}
-	
+
 	// Truncate name if too long
 	if len(params.Name) > 127 {
 		params.Name = params.Name[:127]
 	}
-	
+
 	// Build request parameters
 	values := url.Values{}
 	values.Set("pid", c.PID)
@@ -103,34 +103,34 @@ func (c *Client) CreateOrder(params CreateOrderParams) (*CreateOrderResponse, er
 	if params.Param != "" {
 		values.Set("param", params.Param)
 	}
-	
+
 	// Generate signature
 	sign := c.generateSign(values)
 	values.Set("sign", sign)
 	values.Set("sign_type", "MD5")
-	
+
 	// Send request
 	resp, err := http.PostForm(c.Gateway+"/mapi.php", values)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	// Parse JSON response
 	var jsonResp CreateOrderResponse
 	if err := json.Unmarshal(body, &jsonResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w, body: %s", err, string(body))
 	}
-	
+
 	if jsonResp.Code != 1 {
 		return nil, fmt.Errorf("epay error: %s", jsonResp.Msg)
 	}
-	
+
 	return &jsonResp, nil
 }
 
@@ -172,12 +172,12 @@ func (c *Client) CreateSubmitURL(params CreateOrderParams) string {
 	if params.Param != "" {
 		values.Set("param", params.Param)
 	}
-	
+
 	// Generate signature
 	sign := c.generateSign(values)
 	values.Set("sign", sign)
 	values.Set("sign_type", "MD5")
-	
+
 	return c.Gateway + "/submit.php?" + values.Encode()
 }
 
@@ -188,7 +188,7 @@ func (c *Client) VerifyNotify(params url.Values) bool {
 	if receivedSign == "" {
 		return false
 	}
-	
+
 	// Remove sign and sign_type for verification
 	paramsCopy := make(url.Values)
 	for k, v := range params {
@@ -196,10 +196,10 @@ func (c *Client) VerifyNotify(params url.Values) bool {
 			paramsCopy[k] = v
 		}
 	}
-	
+
 	// Generate expected sign
 	expectedSign := c.generateSign(paramsCopy)
-	
+
 	return receivedSign == expectedSign
 }
 
@@ -214,16 +214,16 @@ func (c *Client) generateSign(params url.Values) string {
 		}
 	}
 	sort.Strings(keys)
-	
+
 	// Build sign string
 	var signParts []string
 	for _, k := range keys {
 		signParts = append(signParts, fmt.Sprintf("%s=%s", k, params.Get(k)))
 	}
-	
+
 	// Concatenate with key (no + character)
 	signStr := strings.Join(signParts, "&") + c.Key
-	
+
 	// Calculate MD5
 	h := md5.New()
 	h.Write([]byte(signStr))
@@ -234,7 +234,7 @@ func (c *Client) generateSign(params url.Values) string {
 type NotifyParams struct {
 	PID         string
 	TradeNo     string // Epay order number
-	OutTradeNo  string // Merchant order number  
+	OutTradeNo  string // Merchant order number
 	Type        string // Payment type
 	Name        string // Product name
 	Money       string // Amount

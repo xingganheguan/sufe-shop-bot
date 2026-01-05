@@ -11,10 +11,10 @@ import (
 
 // OrderMaintenanceWorker handles order expiration and cleanup
 type OrderMaintenanceWorker struct {
-	db              *gorm.DB
-	expireTicker    *time.Ticker
-	cleanupTicker   *time.Ticker
-	done            chan bool
+	db            *gorm.DB
+	expireTicker  *time.Ticker
+	cleanupTicker *time.Ticker
+	done          chan bool
 }
 
 // NewOrderMaintenanceWorker creates a new order maintenance worker
@@ -28,15 +28,15 @@ func NewOrderMaintenanceWorker(db *gorm.DB) *OrderMaintenanceWorker {
 // Start begins the maintenance tasks
 func (w *OrderMaintenanceWorker) Start(ctx context.Context) {
 	logger.Info("Starting order maintenance worker")
-	
+
 	// Run immediately on start
 	w.runExpiration()
 	w.runCleanup()
-	
+
 	// Set up tickers
-	w.expireTicker = time.NewTicker(1 * time.Hour)  // Check every hour
+	w.expireTicker = time.NewTicker(1 * time.Hour)   // Check every hour
 	w.cleanupTicker = time.NewTicker(24 * time.Hour) // Clean up daily
-	
+
 	go func() {
 		for {
 			select {

@@ -6,24 +6,24 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
 var (
-	ErrInvalidToken = errors.New("invalid token")
-	ErrTokenExpired = errors.New("token expired")
+	ErrInvalidToken  = errors.New("invalid token")
+	ErrTokenExpired  = errors.New("token expired")
 	ErrInvalidClaims = errors.New("invalid claims")
 )
 
 // JWTConfig holds JWT configuration
 type JWTConfig struct {
-	SecretKey       string
-	TokenExpiry     time.Duration
-	RefreshExpiry   time.Duration
-	Issuer          string
+	SecretKey     string
+	TokenExpiry   time.Duration
+	RefreshExpiry time.Duration
+	Issuer        string
 	// For backward compatibility
-	LegacyToken     string
+	LegacyToken      string
 	EnableLegacyAuth bool
 }
 
@@ -46,7 +46,7 @@ func NewJWTService(config *JWTConfig) *JWTService {
 	if config.SecretKey == "" {
 		config.SecretKey = generateSecretKey()
 	}
-	
+
 	// Set default expiry times
 	if config.TokenExpiry == 0 {
 		config.TokenExpiry = 24 * time.Hour // 24 hours
@@ -57,7 +57,7 @@ func NewJWTService(config *JWTConfig) *JWTService {
 	if config.Issuer == "" {
 		config.Issuer = "shop-bot-admin"
 	}
-	
+
 	return &JWTService{
 		config: config,
 	}
@@ -79,7 +79,7 @@ func (s *JWTService) GenerateToken(userID, username, role string) (string, error
 		Username: username,
 		Role:     role,
 	}
-	
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(s.config.SecretKey))
 }
@@ -95,7 +95,7 @@ func (s *JWTService) GenerateRefreshToken(userID string) (string, error) {
 		IssuedAt:  jwt.NewNumericDate(now),
 		ID:        generateTokenID(),
 	}
-	
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(s.config.SecretKey))
 }
@@ -115,7 +115,7 @@ func (s *JWTService) ValidateToken(tokenString string) (*Claims, error) {
 			Role:     "admin",
 		}, nil
 	}
-	
+
 	// Parse JWT token
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		// Verify signing method
@@ -124,19 +124,19 @@ func (s *JWTService) ValidateToken(tokenString string) (*Claims, error) {
 		}
 		return []byte(s.config.SecretKey), nil
 	})
-	
+
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrTokenExpired
 		}
 		return nil, ErrInvalidToken
 	}
-	
+
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
 		return nil, ErrInvalidClaims
 	}
-	
+
 	return claims, nil
 }
 
@@ -149,16 +149,16 @@ func (s *JWTService) RefreshToken(refreshTokenString string) (string, error) {
 		}
 		return []byte(s.config.SecretKey), nil
 	})
-	
+
 	if err != nil {
 		return "", err
 	}
-	
+
 	claims, ok := token.Claims.(*jwt.RegisteredClaims)
 	if !ok || !token.Valid {
 		return "", ErrInvalidClaims
 	}
-	
+
 	// Generate new access token
 	// In a real system, you'd fetch user details from database
 	return s.GenerateToken(claims.Subject, "admin", "admin")

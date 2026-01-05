@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	logger "shop-bot/internal/log"
@@ -33,15 +33,15 @@ func (s *Server) handleProductList(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	logger.Info("Fetched products", "count", len(products))
-	
+
 	// Add stock count to response
 	type ProductWithStock struct {
 		store.Product
 		Stock int64 `json:"stock"`
 	}
-	
+
 	var productsWithStock []ProductWithStock
 	for _, p := range products {
 		stock, _ := store.CountAvailableCodes(s.db, p.ID)
@@ -51,7 +51,7 @@ func (s *Server) handleProductList(c *gin.Context) {
 		})
 		logger.Info("Product", "id", p.ID, "name", p.Name, "price", p.PriceCents, "stock", stock)
 	}
-	
+
 	if c.GetHeader("Accept") == "application/json" {
 		// 确保返回完整的产品信息
 		type ProductResponse struct {
@@ -64,7 +64,7 @@ func (s *Server) handleProductList(c *gin.Context) {
 			CreatedAt   string `json:"created_at"`
 			UpdatedAt   string `json:"updated_at"`
 		}
-		
+
 		var response []ProductResponse
 		for _, p := range productsWithStock {
 			response = append(response, ProductResponse{
@@ -78,27 +78,27 @@ func (s *Server) handleProductList(c *gin.Context) {
 				UpdatedAt:   p.UpdatedAt.Format(time.RFC3339),
 			})
 		}
-		
+
 		c.JSON(http.StatusOK, response)
 		return
 	}
-	
+
 	// Get currency settings
 	_, symbol := store.GetCurrencySettings(s.db, s.config)
-	
+
 	// Add debug endpoint
 	if c.Query("debug") == "true" {
 		var rawProducts []store.Product
 		s.db.Raw("SELECT * FROM products").Scan(&rawProducts)
-		
+
 		c.JSON(http.StatusOK, gin.H{
-			"raw_products": rawProducts,
+			"raw_products":        rawProducts,
 			"products_with_stock": productsWithStock,
-			"currency": symbol,
+			"currency":            symbol,
 		})
 		return
 	}
-	
+
 	// HTML response
 
 	c.HTML(http.StatusOK, "product_list.html", gin.H{
@@ -116,29 +116,29 @@ func (s *Server) handleProductCreate(c *gin.Context) {
 		Price       float64 `json:"price"` // Alternative: price in dollars
 		IsActive    bool    `json:"is_active"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Convert price to cents if provided in dollars
 	if req.Price > 0 && req.PriceCents == 0 {
 		req.PriceCents = int(req.Price * 100)
 	}
-	
+
 	product := store.Product{
 		Name:        req.Name,
 		Description: req.Description,
 		PriceCents:  req.PriceCents,
 		IsActive:    true, // Default to active
 	}
-	
+
 	if err := s.db.Create(&product).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, product)
 }
 
@@ -148,7 +148,7 @@ func (s *Server) handleProductUpdate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	
+
 	var req struct {
 		Name        string  `json:"name"`
 		Description string  `json:"description"`
@@ -156,12 +156,12 @@ func (s *Server) handleProductUpdate(c *gin.Context) {
 		Price       float64 `json:"price"`
 		IsActive    *bool   `json:"is_active"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	updates := make(map[string]interface{})
 	if req.Name != "" {
 		updates["name"] = req.Name
@@ -177,12 +177,12 @@ func (s *Server) handleProductUpdate(c *gin.Context) {
 	if req.IsActive != nil {
 		updates["is_active"] = *req.IsActive
 	}
-	
+
 	if err := s.db.Model(&store.Product{}).Where("id = ?", id).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "updated"})
 }
 
@@ -192,13 +192,13 @@ func (s *Server) handleProductDelete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	
+
 	// Soft delete - just deactivate
 	if err := s.db.Model(&store.Product{}).Where("id = ?", id).Update("is_active", false).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "deactivated"})
 }
 
@@ -287,37 +287,37 @@ func (s *Server) handleProductCodes(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	
+
 	// Get product
 	var product store.Product
 	if err := s.db.First(&product, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
 		return
 	}
-	
+
 	// Get codes with pagination
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset := (page - 1) * limit
-	
+
 	var codes []store.Code
 	query := s.db.Where("product_id = ?", id)
-	
+
 	// Filter by sold status if requested
 	if soldStr := c.Query("sold"); soldStr != "" {
 		sold := soldStr == "true"
 		query = query.Where("is_sold = ?", sold)
 	}
-	
+
 	if err := query.Offset(offset).Limit(limit).Find(&codes).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Get total count
 	var total int64
 	s.db.Model(&store.Code{}).Where("product_id = ?", id).Count(&total)
-	
+
 	c.HTML(http.StatusOK, "product_codes.html", gin.H{
 		"product": product,
 		"codes":   codes,
@@ -333,7 +333,7 @@ func (s *Server) handleCodesUpload(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	
+
 	// Parse multipart form
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
@@ -343,59 +343,59 @@ func (s *Server) handleCodesUpload(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no file or codes provided"})
 			return
 		}
-		
+
 		// Get product for notification
 		var product store.Product
 		if err := s.db.First(&product, id).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
 			return
 		}
-		
+
 		// Process text codes
 		codes := processCodesText(codesText, uint(id))
 		if len(codes) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no valid codes found"})
 			return
 		}
-		
+
 		if err := s.db.Create(&codes).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("%d codes uploaded", len(codes))})
-		
+
 		// Send stock update notification
 		go s.sendStockUpdateNotification(product.Name, len(codes))
-		
+
 		return
 	}
 	defer file.Close()
-	
+
 	// Check file size (10MB limit)
 	if header.Size > 10*1024*1024 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "file too large (max 10MB)"})
 		return
 	}
-	
+
 	// Process file
 	scanner := bufio.NewScanner(file)
 	var codes []store.Code
 	lineNum := 0
-	
+
 	for scanner.Scan() {
 		lineNum++
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
 		}
-		
+
 		codes = append(codes, store.Code{
 			ProductID: uint(id),
 			Code:      line,
 			IsSold:    false,
 		})
-		
+
 		// Batch insert every 100 codes
 		if len(codes) >= 100 {
 			if err := s.db.Create(&codes).Error; err != nil {
@@ -407,7 +407,7 @@ func (s *Server) handleCodesUpload(c *gin.Context) {
 			codes = codes[:0]
 		}
 	}
-	
+
 	// Insert remaining codes
 	if len(codes) > 0 {
 		if err := s.db.Create(&codes).Error; err != nil {
@@ -415,9 +415,9 @@ func (s *Server) handleCodesUpload(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("%d codes uploaded", lineNum)})
-	
+
 	// Get product for notification
 	var product store.Product
 	if err := s.db.First(&product, id).Error; err == nil {
@@ -432,36 +432,36 @@ func (s *Server) handleCodeDelete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	
+
 	// Check if code exists and is not sold
 	var code store.Code
 	if err := s.db.First(&code, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "code not found"})
 		return
 	}
-	
+
 	if code.IsSold {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot delete sold code"})
 		return
 	}
-	
+
 	// Delete the code
 	if err := s.db.Delete(&code).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "code deleted"})
 }
 
 func processCodesText(text string, productID uint) []store.Code {
 	var codes []store.Code
 	lines := strings.Split(text, "\n")
-	
+
 	// Support both single-line and multi-line codes
 	// Multi-line codes are separated by empty lines
 	var currentCode []string
-	
+
 	for _, line := range lines {
 		// Check if this is a separator line (empty or only contains dashes/equals)
 		trimmed := strings.TrimSpace(line)
@@ -478,11 +478,11 @@ func processCodesText(text string, productID uint) []store.Code {
 			}
 			continue
 		}
-		
+
 		// Add line to current code
 		currentCode = append(currentCode, line)
 	}
-	
+
 	// Don't forget the last code if there's no trailing empty line
 	if len(currentCode) > 0 {
 		codeText := strings.Join(currentCode, "\n")
@@ -492,7 +492,7 @@ func processCodesText(text string, productID uint) []store.Code {
 			IsSold:    false,
 		})
 	}
-	
+
 	return codes
 }
 
@@ -555,7 +555,7 @@ UID: 800123456
    - 不同卡密之间用空行分隔
    - 可以用分隔线（如 === 或 ---）来更清晰地分隔
 5. 每次上传会自动识别格式并正确保存`
-	
+
 	c.Header("Content-Type", "text/plain; charset=utf-8")
 	c.Header("Content-Disposition", "attachment; filename=\"卡密上传模板.txt\"")
 	c.String(http.StatusOK, templateContent)
@@ -568,14 +568,14 @@ func (s *Server) handleOrderList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset := (page - 1) * limit
-	
+
 	query := s.db.Model(&store.Order{}).Preload("User").Preload("Product")
-	
+
 	// Filter by status
 	if status := c.Query("status"); status != "" {
 		query = query.Where("status = ?", status)
 	}
-	
+
 	// Filter by date range
 	if startDate := c.Query("start_date"); startDate != "" {
 		if t, err := time.Parse("2006-01-02", startDate); err == nil {
@@ -587,18 +587,18 @@ func (s *Server) handleOrderList(c *gin.Context) {
 			query = query.Where("created_at <= ?", t.Add(24*time.Hour))
 		}
 	}
-	
+
 	// Get total count
 	var total int64
 	query.Count(&total)
-	
+
 	// Get orders with codes
 	var orders []store.Order
 	if err := query.Preload("User").Preload("Product").Order("created_at DESC").Offset(offset).Limit(limit).Find(&orders).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Load codes for each order
 	for i := range orders {
 		if orders[i].Status == "delivered" && orders[i].ProductID != nil {
@@ -608,7 +608,7 @@ func (s *Server) handleOrderList(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	if c.GetHeader("Accept") == "application/json" {
 		c.JSON(http.StatusOK, gin.H{
 			"orders": orders,
@@ -618,7 +618,7 @@ func (s *Server) handleOrderList(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// HTML response
 	c.HTML(http.StatusOK, "order_list.html", gin.H{
 		"orders": orders,
@@ -633,15 +633,15 @@ func (s *Server) handleOrderList(c *gin.Context) {
 func (s *Server) handleAdminDashboard(c *gin.Context) {
 	// Get statistics
 	var stats struct {
-		TotalProducts   int64
-		TotalOrders     int64
-		TotalUsers      int64
-		PendingOrders   int64
-		TodayOrders     int64
-		TodayRevenue    int64
-		TotalRevenue    int64
-		TotalCodes      int64
-		AvailableCodes  int64
+		TotalProducts  int64
+		TotalOrders    int64
+		TotalUsers     int64
+		PendingOrders  int64
+		TodayOrders    int64
+		TodayRevenue   int64
+		TotalRevenue   int64
+		TotalCodes     int64
+		AvailableCodes int64
 	}
 
 	s.db.Model(&store.Product{}).Count(&stats.TotalProducts)
@@ -769,21 +769,21 @@ func (s *Server) handleAdminDashboard(c *gin.Context) {
 func (s *Server) handleSettingsList(c *gin.Context) {
 	// Get current currency settings
 	currency, symbol := store.GetCurrencySettings(s.db, s.config)
-	
+
 	// Get order settings
 	orderSettings, err := store.GetSettingsMap(s.db)
 	if err != nil {
 		logger.Error("Failed to get order settings", "error", err)
 		orderSettings = make(map[string]string)
 	}
-	
+
 	// Get order statistics
 	orderStats, err := store.GetOrderStats(s.db)
 	if err != nil {
 		logger.Error("Failed to get order stats", "error", err)
 		orderStats = make(map[string]int64)
 	}
-	
+
 	// Map of available currencies
 	currencies := []struct {
 		Code   string
@@ -802,37 +802,37 @@ func (s *Server) handleSettingsList(c *gin.Context) {
 		{"CAD", "C$", "加元"},
 		{"AUD", "A$", "澳元"},
 	}
-	
+
 	if c.GetHeader("Accept") == "application/json" {
 		c.JSON(http.StatusOK, gin.H{
-			"currency":   currency,
-			"symbol":     symbol,
-			"currencies": currencies,
+			"currency":      currency,
+			"symbol":        symbol,
+			"currencies":    currencies,
 			"orderSettings": orderSettings,
-			"orderStats": orderStats,
+			"orderStats":    orderStats,
 		})
 		return
 	}
-	
+
 	// HTML response
 	c.HTML(http.StatusOK, "settings.html", gin.H{
-		"currency":   currency,
-		"symbol":     symbol,
-		"currencies": currencies,
+		"currency":      currency,
+		"symbol":        symbol,
+		"currencies":    currencies,
 		"orderSettings": orderSettings,
-		"orderStats": orderStats,
+		"orderStats":    orderStats,
 	})
 }
 
 func (s *Server) handleSettingsUpdate(c *gin.Context) {
 	// Check content type to determine what's being updated
 	var req map[string]interface{}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Handle currency settings
 	if currency, ok := req["currency"].(string); ok {
 		if symbol, ok := req["symbol"].(string); ok {
@@ -846,21 +846,21 @@ func (s *Server) handleSettingsUpdate(c *gin.Context) {
 				}
 				return nil
 			})
-			
+
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "保存设置失败"})
 				return
 			}
 		}
 	}
-	
+
 	// Handle order settings
 	for key, value := range req {
 		switch key {
 		case "order_expire_hours", "order_cleanup_days", "enable_auto_expire", "enable_auto_cleanup":
 			valueStr := fmt.Sprintf("%v", value)
 			var description, settingType string
-			
+
 			switch key {
 			case "order_expire_hours":
 				description = "订单过期时间（小时）"
@@ -875,14 +875,14 @@ func (s *Server) handleSettingsUpdate(c *gin.Context) {
 				description = "启用过期订单自动清理"
 				settingType = "bool"
 			}
-			
+
 			if err := store.SetSetting(s.db, key, valueStr, description, settingType); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "保存设置失败"})
 				return
 			}
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "设置已更新"})
 }
 
@@ -895,16 +895,16 @@ func (s *Server) handleUserList(c *gin.Context) {
 
 	// Build query
 	query := s.db.Model(&store.User{})
-	
+
 	// Add search filter
 	if search := c.Query("search"); search != "" {
 		query = query.Where("username LIKE ? OR CAST(tg_user_id AS TEXT) LIKE ?", "%"+search+"%", "%"+search+"%")
 	}
-	
+
 	// Get total count
 	var total int64
 	query.Count(&total)
-	
+
 	// Get users with order count and total spent
 	type UserWithStats struct {
 		store.User
@@ -912,7 +912,7 @@ func (s *Server) handleUserList(c *gin.Context) {
 		TotalSpent  int64
 		LastOrderAt *time.Time
 	}
-	
+
 	var users []UserWithStats
 	if err := s.db.Table("users").
 		Select("users.*, COUNT(DISTINCT orders.id) as order_count, COALESCE(SUM(orders.amount_cents), 0) as total_spent, MAX(orders.created_at) as last_order_at").
@@ -925,7 +925,7 @@ func (s *Server) handleUserList(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// HTML response
 	c.HTML(http.StatusOK, "user_list.html", gin.H{
 		"users":  users,
@@ -942,17 +942,17 @@ func (s *Server) handleUserDetail(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	// Get user
 	var user store.User
 	if err := s.db.First(&user, userID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-	
+
 	// Get user balance
 	balance, _ := store.GetUserBalance(s.db, uint(userID))
-	
+
 	// Get user statistics
 	var stats struct {
 		TotalOrders     int64
@@ -960,13 +960,13 @@ func (s *Server) handleUserDetail(c *gin.Context) {
 		PendingOrders   int64
 		DeliveredOrders int64
 	}
-	
+
 	s.db.Model(&store.Order{}).Where("user_id = ?", userID).Count(&stats.TotalOrders)
 	s.db.Model(&store.Order{}).Where("user_id = ? AND status = ?", userID, "pending").Count(&stats.PendingOrders)
 	s.db.Model(&store.Order{}).Where("user_id = ? AND status = ?", userID, "delivered").Count(&stats.DeliveredOrders)
 	s.db.Model(&store.Order{}).Where("user_id = ? AND status IN (?)", userID, []string{"paid", "delivered"}).
 		Select("COALESCE(SUM(amount_cents), 0)").Scan(&stats.TotalSpent)
-	
+
 	// Get recent orders
 	var orders []store.Order
 	s.db.Where("user_id = ?", userID).
@@ -974,7 +974,7 @@ func (s *Server) handleUserDetail(c *gin.Context) {
 		Order("created_at DESC").
 		Limit(20).
 		Find(&orders)
-		
+
 	// Load codes for delivered orders
 	for i := range orders {
 		if orders[i].Status == "delivered" && orders[i].ProductID != nil {
@@ -984,7 +984,7 @@ func (s *Server) handleUserDetail(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// Get balance transactions
 	var transactions []store.BalanceTransaction
 	s.db.Where("user_id = ?", userID).
@@ -993,7 +993,7 @@ func (s *Server) handleUserDetail(c *gin.Context) {
 		Order("created_at DESC").
 		Limit(20).
 		Find(&transactions)
-	
+
 	// HTML response
 	c.HTML(http.StatusOK, "user_detail.html", gin.H{
 		"user":         user,
@@ -1008,14 +1008,14 @@ func (s *Server) handleUserDetail(c *gin.Context) {
 
 func (s *Server) handleFAQList(c *gin.Context) {
 	lang := c.DefaultQuery("lang", "zh")
-	
+
 	// Get all FAQs for the language
 	var faqs []store.FAQ
 	if err := s.db.Where("language = ?", lang).Order("sort_order ASC, id ASC").Find(&faqs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.HTML(http.StatusOK, "faq_list.html", gin.H{
 		"faqs":     faqs,
 		"language": lang,
@@ -1061,13 +1061,13 @@ func (s *Server) handleFAQUpdate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	
+
 	var faq store.FAQ
 	if err := s.db.First(&faq, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "FAQ not found"})
 		return
 	}
-	
+
 	var req struct {
 		Question  string `form:"question" binding:"required"`
 		Answer    string `form:"answer" binding:"required"`
@@ -1089,12 +1089,12 @@ func (s *Server) handleFAQUpdate(c *gin.Context) {
 	faq.Language = req.Language
 	faq.SortOrder = req.SortOrder
 	faq.IsActive = isActive
-	
+
 	if err := s.db.Save(&faq).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
@@ -1104,12 +1104,12 @@ func (s *Server) handleFAQDelete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	
+
 	if err := s.db.Delete(&store.FAQ{}, id).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
@@ -1119,20 +1119,20 @@ func (s *Server) handleFAQSort(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	
+
 	var req struct {
 		SortOrder int `json:"sort_order" binding:"required"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	if err := s.db.Model(&store.FAQ{}).Where("id = ?", id).Update("sort_order", req.SortOrder).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }

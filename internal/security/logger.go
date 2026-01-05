@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	
+
 	logger "shop-bot/internal/log"
 )
 
@@ -28,16 +28,16 @@ const (
 
 // SecurityEvent represents a security-related event
 type SecurityEvent struct {
-	Type        EventType
-	UserID      string
-	Username    string
-	IPAddress   string
-	UserAgent   string
-	Resource    string
-	Action      string
-	Result      string
-	Details     map[string]interface{}
-	Timestamp   time.Time
+	Type      EventType
+	UserID    string
+	Username  string
+	IPAddress string
+	UserAgent string
+	Resource  string
+	Action    string
+	Result    string
+	Details   map[string]interface{}
+	Timestamp time.Time
 }
 
 // SecurityLogger handles security event logging
@@ -60,13 +60,13 @@ func (sl *SecurityLogger) LogEvent(event SecurityEvent) {
 	if event.Timestamp.IsZero() {
 		event.Timestamp = time.Now()
 	}
-	
+
 	// Build log fields
 	fields := []interface{}{
 		"event_type", event.Type,
 		"timestamp", event.Timestamp.Format(time.RFC3339),
 	}
-	
+
 	// Add user info if available
 	if event.UserID != "" {
 		fields = append(fields, "user_id", event.UserID)
@@ -78,7 +78,7 @@ func (sl *SecurityLogger) LogEvent(event SecurityEvent) {
 		}
 		fields = append(fields, "username", username)
 	}
-	
+
 	// Add request info
 	if event.IPAddress != "" {
 		fields = append(fields, "ip_address", event.IPAddress)
@@ -86,7 +86,7 @@ func (sl *SecurityLogger) LogEvent(event SecurityEvent) {
 	if event.UserAgent != "" {
 		fields = append(fields, "user_agent", event.UserAgent)
 	}
-	
+
 	// Add action details
 	if event.Resource != "" {
 		fields = append(fields, "resource", event.Resource)
@@ -97,7 +97,7 @@ func (sl *SecurityLogger) LogEvent(event SecurityEvent) {
 	if event.Result != "" {
 		fields = append(fields, "result", event.Result)
 	}
-	
+
 	// Add additional details if enabled
 	if sl.enableDetailedLogging && event.Details != nil {
 		for key, value := range event.Details {
@@ -110,7 +110,7 @@ func (sl *SecurityLogger) LogEvent(event SecurityEvent) {
 			fields = append(fields, key, value)
 		}
 	}
-	
+
 	// Determine log level based on event type
 	switch event.Type {
 	case EventLoginFailed, EventRateLimited, EventSuspiciousIP, EventAccessDenied:
@@ -192,7 +192,7 @@ func (sl *SecurityLogger) LogSecurityAlert(alertType, description string, detail
 	}
 	details["alert_type"] = alertType
 	details["description"] = description
-	
+
 	sl.LogEvent(SecurityEvent{
 		Type:    EventSecurityAlert,
 		Result:  "alert",
@@ -206,29 +206,29 @@ func isSensitiveField(fieldName string) bool {
 		"password", "token", "secret", "key", "email", "phone",
 		"credit_card", "ssn", "api_key", "private_key",
 	}
-	
+
 	fieldLower := strings.ToLower(fieldName)
 	for _, sensitive := range sensitiveFields {
 		if strings.Contains(fieldLower, sensitive) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 // SecurityAudit represents an audit trail entry
 type SecurityAudit struct {
-	ID          string
-	UserID      string
-	Username    string
-	Action      string
-	Resource    string
-	OldValue    string
-	NewValue    string
-	IPAddress   string
-	UserAgent   string
-	Timestamp   time.Time
+	ID        string
+	UserID    string
+	Username  string
+	Action    string
+	Resource  string
+	OldValue  string
+	NewValue  string
+	IPAddress string
+	UserAgent string
+	Timestamp time.Time
 }
 
 // LogAudit logs an audit trail entry
@@ -236,7 +236,7 @@ func (sl *SecurityLogger) LogAudit(audit SecurityAudit) {
 	if audit.Timestamp.IsZero() {
 		audit.Timestamp = time.Now()
 	}
-	
+
 	fields := []interface{}{
 		"audit_id", audit.ID,
 		"user_id", audit.UserID,
@@ -245,15 +245,15 @@ func (sl *SecurityLogger) LogAudit(audit SecurityAudit) {
 		"resource", audit.Resource,
 		"timestamp", audit.Timestamp.Format(time.RFC3339),
 	}
-	
+
 	if audit.IPAddress != "" {
 		fields = append(fields, "ip_address", audit.IPAddress)
 	}
-	
+
 	if audit.UserAgent != "" {
 		fields = append(fields, "user_agent", audit.UserAgent)
 	}
-	
+
 	// Mask sensitive values if needed
 	if sl.maskSensitiveData {
 		if audit.OldValue != "" {
@@ -270,6 +270,6 @@ func (sl *SecurityLogger) LogAudit(audit SecurityAudit) {
 			fields = append(fields, "new_value", audit.NewValue)
 		}
 	}
-	
+
 	logger.Info("Security Audit", fields...)
 }

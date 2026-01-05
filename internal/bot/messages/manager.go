@@ -36,20 +36,20 @@ func GetManager() *Manager {
 
 func (m *Manager) loadMessages() {
 	languages := []string{"en", "zh"}
-	
+
 	for _, lang := range languages {
 		data, err := messagesFS.ReadFile(lang + ".json")
 		if err != nil {
 			fmt.Printf("Failed to load %s.json: %v\n", lang, err)
 			continue
 		}
-		
+
 		var msgs map[string]string
 		if err := json.Unmarshal(data, &msgs); err != nil {
 			fmt.Printf("Failed to parse %s.json: %v\n", lang, err)
 			continue
 		}
-		
+
 		m.messages[lang] = msgs
 	}
 }
@@ -58,46 +58,46 @@ func (m *Manager) loadMessages() {
 func (m *Manager) Get(lang, key string) string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	// Fallback to English if language not found
 	if _, ok := m.messages[lang]; !ok {
 		lang = "en"
 	}
-	
+
 	if msg, ok := m.messages[lang][key]; ok {
 		return msg
 	}
-	
+
 	// Try English as fallback
 	if lang != "en" {
 		if msg, ok := m.messages["en"][key]; ok {
 			return msg
 		}
 	}
-	
+
 	return key // Return key if message not found
 }
 
 // Format returns a formatted message with template data
 func (m *Manager) Format(lang, key string, data interface{}) string {
 	msgTemplate := m.Get(lang, key)
-	
+
 	// If no template syntax, return as-is
 	if !strings.Contains(msgTemplate, "{{") {
 		return msgTemplate
 	}
-	
+
 	// Parse and execute template
 	tmpl, err := template.New(key).Parse(msgTemplate)
 	if err != nil {
 		return msgTemplate
 	}
-	
+
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
 		return msgTemplate
 	}
-	
+
 	return buf.String()
 }
 

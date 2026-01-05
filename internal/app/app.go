@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
-	
+
 	"github.com/gin-gonic/gin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gorm.io/gorm"
-	
+
 	"shop-bot/internal/bot"
 	"shop-bot/internal/broadcast"
 	"shop-bot/internal/cache"
@@ -51,18 +51,18 @@ func toFloat64(v interface{}) (float64, error) {
 
 // Application holds all application components
 type Application struct {
-	Config      *config.Config
-	ConfigManager *config.Manager
-	DB          *gorm.DB
-	Cache       *cache.Client
-	Bot         *bot.Bot
-	Broadcast   *broadcast.Service
-	AdminServer *httpadmin.Server
-	RetryWorker *worker.RetryWorker
+	Config                 *config.Config
+	ConfigManager          *config.Manager
+	DB                     *gorm.DB
+	Cache                  *cache.Client
+	Bot                    *bot.Bot
+	Broadcast              *broadcast.Service
+	AdminServer            *httpadmin.Server
+	RetryWorker            *worker.RetryWorker
 	OrderMaintenanceWorker *worker.OrderMaintenanceWorker
 
-	httpServer  *http.Server
-	wg          sync.WaitGroup
+	httpServer *http.Server
+	wg         sync.WaitGroup
 }
 
 // New creates a new application instance
@@ -109,26 +109,26 @@ func New(cfg *config.Config, db *gorm.DB) (*Application, error) {
 
 	// Create application
 	app := &Application{
-		Config:      cfg,
-		ConfigManager: configManager,
-		DB:          db,
-		Cache:       cacheClient,
-		Bot:         botInstance,
-		Broadcast:   broadcastService,
-		RetryWorker: retryWorker,
+		Config:                 cfg,
+		ConfigManager:          configManager,
+		DB:                     db,
+		Cache:                  cacheClient,
+		Bot:                    botInstance,
+		Broadcast:              broadcastService,
+		RetryWorker:            retryWorker,
 		OrderMaintenanceWorker: orderMaintenanceWorker,
 	}
-	
+
 	// Initialize ticket service if bot is available
 	if botInstance != nil && db != nil {
 		ticketService := ticket.NewService(db, botInstance.GetAPI())
 		botInstance.SetTicketService(ticketService)
 		logger.Info("Ticket service initialized and connected to bot")
 	}
-	
+
 	// Initialize HTTP admin server with access to bot
 	app.AdminServer = httpadmin.NewServerWithApp(cfg.AdminToken, app)
-	
+
 	return app, nil
 }
 
@@ -151,14 +151,14 @@ func (app *Application) Start(ctx context.Context) error {
 		}
 		logger.Info("Webhook set", "url", app.Config.WebhookURL)
 	}
-	
+
 	// Start HTTP server
 	app.wg.Add(1)
 	go func() {
 		defer app.wg.Done()
 		app.startHTTPServer(ctx)
 	}()
-	
+
 	// Start retry worker
 	app.wg.Add(1)
 	go func() {
@@ -166,7 +166,7 @@ func (app *Application) Start(ctx context.Context) error {
 		logger.Info("Starting retry worker")
 		app.RetryWorker.Start(ctx)
 	}()
-	
+
 	// Start order maintenance worker
 	app.wg.Add(1)
 	go func() {
@@ -174,31 +174,31 @@ func (app *Application) Start(ctx context.Context) error {
 		logger.Info("Starting order maintenance worker")
 		app.OrderMaintenanceWorker.Start(ctx)
 	}()
-	
+
 	return nil
 }
 
 // startHTTPServer starts the HTTP server
 func (app *Application) startHTTPServer(ctx context.Context) {
 	router := app.setupRouter()
-	
+
 	addr := fmt.Sprintf(":%d", app.Config.Port)
 	if app.Config.UseWebhook && app.Config.WebhookPort > 0 {
 		addr = fmt.Sprintf(":%d", app.Config.WebhookPort)
 	}
-	
+
 	app.httpServer = &http.Server{
 		Addr:    addr,
 		Handler: router,
 	}
-	
+
 	logger.Info("Starting HTTP server", "addr", addr)
-	
+
 	go func() {
 		<-ctx.Done()
 		app.httpServer.Shutdown(context.Background())
 	}()
-	
+
 	if err := app.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error("HTTP server error", "error", err)
 	}
@@ -207,10 +207,10 @@ func (app *Application) startHTTPServer(ctx context.Context) {
 // setupRouter sets up all HTTP routes
 func (app *Application) setupRouter() *gin.Engine {
 	r := gin.Default()
-	
+
 	// Get currency settings
 	_, currencySymbol := store.GetCurrencySettings(app.DB, app.Config)
-	
+
 	// Add template functions
 	r.SetFuncMap(template.FuncMap{
 		"divf": func(a, b interface{}) float64 {
@@ -255,18 +255,18 @@ func (app *Application) setupRouter() *gin.Engine {
 			return a * b
 		},
 	})
-	
+
 	// Load HTML templates
 	r.LoadHTMLGlob("templates/*.html")
-	
+
 	// Add all admin routes
 	app.AdminServer.SetupRoutes(r)
-	
+
 	// Add webhook route if enabled
 	if app.Config.UseWebhook {
 		r.POST("/webhook/:token", app.handleWebhook)
 	}
-	
+
 	return r
 }
 
@@ -277,22 +277,22 @@ func (app *Application) handleWebhook(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
-	
+
 	var update tgbotapi.Update
 	if err := c.ShouldBindJSON(&update); err != nil {
 		logger.Error("Failed to parse webhook update", "error", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	
+
 	// Log webhook update
-	logger.Info("Received webhook update", "update_id", update.UpdateID, 
+	logger.Info("Received webhook update", "update_id", update.UpdateID,
 		"has_message", update.Message != nil,
 		"has_callback", update.CallbackQuery != nil)
-	
+
 	// Process update asynchronously
 	go app.Bot.HandleWebhookUpdate(update)
-	
+
 	c.Status(http.StatusOK)
 }
 
@@ -304,19 +304,19 @@ func (app *Application) Wait() {
 // Shutdown gracefully shuts down the application
 func (app *Application) Shutdown(ctx context.Context) error {
 	logger.Info("Shutting down application...")
-	
+
 	// Shutdown HTTP server
 	if app.httpServer != nil {
 		if err := app.httpServer.Shutdown(ctx); err != nil {
 			logger.Error("HTTP server shutdown error", "error", err)
 		}
 	}
-	
+
 	// Close cache
 	if app.Cache != nil {
 		app.Cache.Close()
 	}
-	
+
 	return nil
 }
 

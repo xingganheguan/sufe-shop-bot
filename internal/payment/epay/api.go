@@ -9,20 +9,20 @@ import (
 
 // OrderInfo represents order information from query
 type OrderInfo struct {
-	Code        int    `json:"code"`
-	Msg         string `json:"msg"`
-	TradeNo     string `json:"trade_no"`      // Epay order number
-	OutTradeNo  string `json:"out_trade_no"`  // Merchant order number
-	APITradeNo  string `json:"api_trade_no"`  // Third-party order number
-	Type        string `json:"type"`          // Payment type
-	PID         int    `json:"pid"`           // Merchant ID
-	AddTime     string `json:"addtime"`       // Order creation time
-	EndTime     string `json:"endtime"`       // Order completion time
-	Name        string `json:"name"`          // Product name
-	Money       string `json:"money"`         // Amount
-	Status      int    `json:"status"`        // 1 for paid, 0 for unpaid
-	Param       string `json:"param"`         // Business parameter
-	Buyer       string `json:"buyer"`         // Payer account
+	Code       int    `json:"code"`
+	Msg        string `json:"msg"`
+	TradeNo    string `json:"trade_no"`     // Epay order number
+	OutTradeNo string `json:"out_trade_no"` // Merchant order number
+	APITradeNo string `json:"api_trade_no"` // Third-party order number
+	Type       string `json:"type"`         // Payment type
+	PID        int    `json:"pid"`          // Merchant ID
+	AddTime    string `json:"addtime"`      // Order creation time
+	EndTime    string `json:"endtime"`      // Order completion time
+	Name       string `json:"name"`         // Product name
+	Money      string `json:"money"`        // Amount
+	Status     int    `json:"status"`       // 1 for paid, 0 for unpaid
+	Param      string `json:"param"`        // Business parameter
+	Buyer      string `json:"buyer"`        // Payer account
 }
 
 // QueryOrder queries a single order by trade_no or out_trade_no
@@ -31,7 +31,7 @@ func (c *Client) QueryOrder(tradeNo, outTradeNo string) (*OrderInfo, error) {
 	params.Set("act", "order")
 	params.Set("pid", c.PID)
 	params.Set("key", c.Key)
-	
+
 	if tradeNo != "" {
 		params.Set("trade_no", tradeNo)
 	} else if outTradeNo != "" {
@@ -39,22 +39,22 @@ func (c *Client) QueryOrder(tradeNo, outTradeNo string) (*OrderInfo, error) {
 	} else {
 		return nil, fmt.Errorf("either trade_no or out_trade_no must be provided")
 	}
-	
+
 	resp, err := http.Get(c.Gateway + "/api.php?" + params.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("failed to query order: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	var result OrderInfo
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	if result.Code != 1 {
 		return nil, fmt.Errorf("query failed: %s", result.Msg)
 	}
-	
+
 	return &result, nil
 }
 
@@ -76,7 +76,7 @@ func (c *Client) RefundOrder(req RefundRequest) error {
 	values := url.Values{}
 	values.Set("pid", c.PID)
 	values.Set("key", c.Key)
-	
+
 	if req.TradeNo != "" {
 		values.Set("trade_no", req.TradeNo)
 	} else if req.OutTradeNo != "" {
@@ -84,24 +84,24 @@ func (c *Client) RefundOrder(req RefundRequest) error {
 	} else {
 		return fmt.Errorf("either trade_no or out_trade_no must be provided")
 	}
-	
+
 	values.Set("money", fmt.Sprintf("%.2f", req.Money))
-	
+
 	resp, err := http.PostForm(c.Gateway+"/api.php?act=refund", values)
 	if err != nil {
 		return fmt.Errorf("failed to submit refund: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	var result RefundResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	if result.Code != 0 { // Note: refund API returns 0 for success
 		return fmt.Errorf("refund failed: %s", result.Msg)
 	}
-	
+
 	return nil
 }
 
@@ -126,21 +126,21 @@ func (c *Client) QueryMerchantInfo() (*MerchantInfo, error) {
 	params.Set("act", "query")
 	params.Set("pid", c.PID)
 	params.Set("key", c.Key)
-	
+
 	resp, err := http.Get(c.Gateway + "/api.php?" + params.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("failed to query merchant info: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	var result MerchantInfo
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	if result.Code != 1 {
 		return nil, fmt.Errorf("query failed")
 	}
-	
+
 	return &result, nil
 }
