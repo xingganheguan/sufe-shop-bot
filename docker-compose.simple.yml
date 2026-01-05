@@ -1,11 +1,17 @@
 services:
   app:
-    build: .
+    # 使用预构建镜像（推荐，更快部署）
+    image: ghcr.io/shannon-x/sufe-shop-bot:latest
+    # 或者本地构建：注释上面的 image 行，取消下面的 build 注释
+    # build: .
     container_name: shopbot-app
     env_file:
       - .env
     environment:
       - TZ=Asia/Shanghai
+      # SQLite 配置（默认）
+      - DB_TYPE=sqlite
+      - DB_NAME=/app/data/shop.db
     volumes:
       - ./templates:/app/templates:ro
       - ./static:/app/static:ro
@@ -13,10 +19,16 @@ services:
       - ./data:/app/data
     ports:
       - "9147:9147"
+    networks:
+      - shopbot-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9147/healthz"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9147/healthz" ]
       interval: 30s
       timeout: 3s
       retries: 3
       start_period: 40s
+
+networks:
+  shopbot-network:
+    driver: bridge

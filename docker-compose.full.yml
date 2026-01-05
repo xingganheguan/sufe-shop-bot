@@ -1,53 +1,76 @@
-version: '3.8'
+# =============================================================================
+# Sufe Shop Bot - 完整部署配置（含 PostgreSQL + Redis）
+# =============================================================================
+# 使用方式:
+#   1. 复制 .env.production 为 .env 并配置
+#   2. 运行: docker-compose -f docker-compose.full.yml up -d
+#
+# 此配置包含完整的服务栈:
+#   - PostgreSQL 15 数据库
+#   - Redis 7 缓存
+#   - Shop Bot 应用
+# =============================================================================
 
 services:
+  # ===========================================================================
   # PostgreSQL 数据库服务
+  # ===========================================================================
   postgres:
     image: postgres:15-alpine
     container_name: shopbot-postgres
     environment:
-      - POSTGRES_DB=shopbot
-      - POSTGRES_USER=shopbot
-      - POSTGRES_PASSWORD=shopbot_secure_password_2024
-      - TZ=Asia/Shanghai
+      POSTGRES_DB: ${DB_NAME:-shopbot}
+      POSTGRES_USER: ${DB_USER:-shopbot}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-shopbot_secure_password_2024}
+      TZ: Asia/Shanghai
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     networks:
       - shopbot-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U shopbot" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-shopbot}" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ===========================================================================
   # Redis 缓存服务
+  # ===========================================================================
   redis:
     image: redis:7-alpine
     container_name: shopbot-redis
-    command: redis-server --appendonly yes --requirepass redis_secure_password_2024
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secure_password_2024}
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     networks:
       - shopbot-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "redis_secure_password_2024", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secure_password_2024}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # 应用服务
+  # ===========================================================================
+  # Shop Bot 应用服务
+  # ===========================================================================
   app:
-    # Use pre-built image from GitHub Container Registry
+    # =========================================================================
+    # 镜像配置（二选一）
+    # =========================================================================
+    # 方式一：使用预构建镜像（推荐，更快）
     image: ghcr.io/shannon-x/sufe-shop-bot:latest
-    # Or build locally:
-    # build: .
+    # 方式二：本地构建（注释上面的 image，取消下面的注释）
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    # =========================================================================
+
     container_name: shopbot-app
     depends_on:
       postgres:
@@ -55,26 +78,28 @@ services:
       redis:
         condition: service_healthy
     env_file:
-      - .env.production
+      - .env
     environment:
-      - TZ=Asia/Shanghai
-      - DB_TYPE=postgres
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=shopbot
-      - DB_USER=shopbot
-      - DB_PASSWORD=shopbot_secure_password_2024
-      - DB_SSL_MODE=disable
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=redis_secure_password_2024
+      TZ: Asia/Shanghai
+      # 数据库配置（覆盖 .env 中的配置，确保连接到容器内的数据库）
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-shopbot}
+      DB_USER: ${DB_USER:-shopbot}
+      DB_PASSWORD: ${DB_PASSWORD:-shopbot_secure_password_2024}
+      DB_SSL_MODE: disable
+      # Redis 配置
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secure_password_2024}
     volumes:
       - ./templates:/app/templates:ro
       - ./static:/app/static:ro
       - ./logs:/app/logs
       - ./data:/app/data
     ports:
-      - "9147:9147"
+      - "${PORT:-9147}:9147"
     networks:
       - shopbot-network
     restart: unless-stopped
