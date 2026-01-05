@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html data-theme="dark">
+<head>
+    <title>{{.title}} - 商城机器人管理中心</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f0f1e">
+    <link rel="stylesheet" href="/static/css/theme.css?v=2">
+    {{block "styles" .}}{{end}}
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">商城机器人管理中心</div>
+            <div style="display: flex; align-items: center;">
+                <div class="theme-toggle" title="切换主题 (Ctrl+Shift+T)">
+                    <span class="theme-toggle-icon sun">☀️</span>
+                    <span class="theme-toggle-icon moon">🌙</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">退出登录</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <nav class="nav">
+            <a href="/admin" {{if eq .currentPage "dashboard"}}class="active"{{end}}>仪表盘</a>
+            <a href="/admin/users" {{if eq .currentPage "users"}}class="active"{{end}}>用户管理</a>
+            <a href="/admin/products" {{if eq .currentPage "products"}}class="active"{{end}}>商品管理</a>
+            <a href="/admin/orders" {{if eq .currentPage "orders"}}class="active"{{end}}>订单管理</a>
+            <a href="/admin/codes" {{if eq .currentPage "codes"}}class="active"{{end}}>卡密管理</a>
+            <a href="/admin/recharge-cards" {{if eq .currentPage "recharge-cards"}}class="active"{{end}}>充值卡管理</a>
+            <a href="/admin/faqs" {{if eq .currentPage "faqs"}}class="active"{{end}}>常见问题</a>
+            <a href="/admin/templates" {{if eq .currentPage "templates"}}class="active"{{end}}>消息模板</a>
+            <a href="/admin/broadcast" {{if eq .currentPage "broadcast"}}class="active"{{end}}>群发消息</a>
+            <a href="/admin/settings" {{if eq .currentPage "settings"}}class="active"{{end}}>系统设置</a>
+        </nav>
+        
+        <div class="content-wrapper">
+            {{block "content" .}}{{end}}
+        </div>
+    </div>
+
+    <script>
+        // Theme toggle functionality
+        const themeToggle = document.querySelector('.theme-toggle');
+        const html = document.documentElement;
+        
+        // Initialize theme from localStorage
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        html.setAttribute('data-theme', savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+        
+        // Keyboard shortcut for theme toggle (Ctrl+Shift+T)
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+                e.preventDefault();
+                themeToggle.click();
+            }
+        });
+        
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/logout';
+            }
+        }
+        
+        // Add enter key support for forms
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'textarea') {
+                const form = e.target.closest('form');
+                if (form) {
+                    const submitBtn = form.querySelector('[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.click();
+                    }
+                }
+            }
+        });
+        
+        // Auto-hide alerts after 5 seconds
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                alert.style.transition = 'opacity 0.5s ease-out';
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 5000);
+    </script>
+    
+    {{block "scripts" .}}{{end}}
+</body>
+</html>

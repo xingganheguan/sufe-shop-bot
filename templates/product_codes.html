@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡密管理 - {{.product.Name}}</title>
+    
+    <!-- Modern CSS -->
+    <link rel="stylesheet" href="/static/css/modern-theme.css?v=2">
+    <link rel="stylesheet" href="/static/css/modern-components.css?v=2">
+    <link rel="stylesheet" href="/static/css/modern-layout.css?v=2">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Back Link */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-bottom: var(--spacing-lg);
+            transition: color var(--transition-fast);
+        }
+        
+        .back-link:hover {
+            color: var(--primary-600);
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .stat-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary-600);
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+        
+        /* Code Table */
+        .code-content {
+            font-family: monospace;
+            background: var(--bg-secondary);
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .status-available {
+            color: var(--success-600);
+        }
+        
+        .status-used {
+            color: var(--danger-600);
+        }
+        
+        /* Tab Buttons */
+        .tab-buttons {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .tab-button {
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .tab-button.active {
+            background: var(--primary-600);
+            color: white;
+            border-color: var(--primary-600);
+        }
+        
+        .tab-button:hover:not(.active) {
+            border-color: var(--primary-600);
+            color: var(--primary-600);
+        }
+        
+        /* Upload Form */
+        .upload-form {
+            display: none;
+        }
+        
+        .upload-form.active {
+            display: block;
+        }
+        
+        .form-help {
+            margin-top: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background: var(--info-50);
+            border: 1px solid var(--info-200);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            color: var(--info-800);
+        }
+        
+        /* Delete Button */
+        .delete-btn {
+            padding: 4px 12px;
+            background: var(--danger-600);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .delete-btn:hover {
+            background: var(--danger-700);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    商城机器人管理中心
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <i class="fas fa-sun sun-icon theme-toggle-icon"></i>
+                        <i class="fas fa-moon moon-icon theme-toggle-icon"></i>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        退出登录
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">主要功能</div>
+                    <a href="/admin/">
+                        <i class="fas fa-tachometer-alt nav-icon"></i>
+                        仪表盘
+                    </a>
+                    <a href="/admin/products" class="active">
+                        <i class="fas fa-box nav-icon"></i>
+                        商品管理
+                    </a>
+                    <a href="/admin/orders">
+                        <i class="fas fa-shopping-cart nav-icon"></i>
+                        订单管理
+                    </a>
+                    <a href="/admin/users">
+                        <i class="fas fa-users nav-icon"></i>
+                        用户管理
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">运营工具</div>
+                    <a href="/admin/recharge-cards">
+                        <i class="fas fa-credit-card nav-icon"></i>
+                        充值卡管理
+                    </a>
+                    <a href="/admin/broadcast">
+                        <i class="fas fa-bullhorn nav-icon"></i>
+                        消息推送
+                    </a>
+                    <a href="/admin/faq">
+                        <i class="fas fa-question-circle nav-icon"></i>
+                        FAQ管理
+                    </a>
+                    <a href="/admin/templates">
+                        <i class="fas fa-file-alt nav-icon"></i>
+                        消息模板
+                    </a>
+                    <a href="/admin/tickets">
+                        <i class="fas fa-ticket-alt nav-icon"></i>
+                        工单管理
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <a href="/admin/settings">
+                        <i class="fas fa-cog nav-icon"></i>
+                        系统设置
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="container">
+                <!-- Back Link -->
+                <a href="/admin/products" class="back-link">
+                    <i class="fas fa-arrow-left"></i>
+                    返回商品列表
+                </a>
+                
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1 class="page-title">{{.product.Name}} - 卡密管理</h1>
+                    <p class="page-subtitle">管理商品卡密库存</p>
+                </div>
+                
+                {{if .error}}
+                <div class="alert alert-danger mb-4">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {{.error}}
+                </div>
+                {{end}}
+                
+                {{if .success}}
+                <div class="alert alert-success mb-4">
+                    <i class="fas fa-check-circle"></i>
+                    {{.success}}
+                </div>
+                {{end}}
+                
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">{{.total}}</div>
+                        <div class="stat-label">总卡密数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{len .codes}}</div>
+                        <div class="stat-label">当前页显示</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{.page}}</div>
+                        <div class="stat-label">当前页码</div>
+                    </div>
+                </div>
+                
+                <!-- Add Codes Section -->
+                <div class="content-section">
+                    <h3 class="text-lg font-semibold mb-4">批量添加卡密</h3>
+                    
+                    <!-- Tab buttons -->
+                    <div class="tab-buttons">
+                        <button type="button" class="tab-button active" onclick="showTab('text')" id="textTab">文本输入</button>
+                        <button type="button" class="tab-button" onclick="showTab('file')" id="fileTab">文件上传</button>
+                        <a href="/admin/codes/template" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-download"></i>
+                            下载模板
+                        </a>
+                    </div>
+                    
+                    <!-- Text input form -->
+                    <form id="textForm" class="upload-form active" onsubmit="submitTextCodes(event)">
+                        <div class="form-group">
+                            <label class="form-label">直接输入卡密</label>
+                            <textarea name="codes" class="form-control" rows="8" placeholder="每行一个卡密，支持多行卡密格式：&#10;&#10;单行卡密示例：&#10;ABC123456789&#10;DEF987654321&#10;&#10;多行卡密示例（用空行分隔）：&#10;租户名: elmejorporteroesfran&#10;用户名: elmejorporteroesfran@hotmail.com&#10;密码: mudvoc-nitsa0-Nifjas&#10;&#10;账号: user001&#10;密码: pass123&#10;有效期: 2025-12-31" required></textarea>
+                            <div class="form-help">
+                                <strong>格式说明：</strong><br>
+                                1. 单行卡密：每行一个卡密<br>
+                                2. 多行卡密：多行内容组成一个卡密，不同卡密之间用空行分隔<br>
+                                3. 支持任意格式的文本内容
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i>
+                            添加卡密
+                        </button>
+                    </form>
+                    
+                    <!-- File upload form -->
+                    <form id="fileForm" class="upload-form" action="/admin/products/{{.product.ID}}/codes/upload" method="post" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label class="form-label">选择文件</label>
+                            <input type="file" name="file" accept=".txt,.csv" class="form-control" required>
+                            <div class="form-help">支持TXT或CSV文件，格式与文本输入相同</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i>
+                            上传卡密
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Codes Table -->
+                <div class="content-section">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th style="width: 50%;">卡密内容</th>
+                                    <th>状态</th>
+                                    <th>添加时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{range .codes}}
+                                <tr>
+                                    <td>{{.ID}}</td>
+                                    <td>
+                                        <span class="code-content">{{.Code}}</span>
+                                    </td>
+                                    <td>
+                                        {{if .IsSold}}
+                                            <span class="badge badge-danger">已使用</span>
+                                        {{else}}
+                                            <span class="badge badge-success">未使用</span>
+                                        {{end}}
+                                    </td>
+                                    <td class="text-sm">{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
+                                    <td>
+                                        {{if not .IsSold}}
+                                            <button class="delete-btn" onclick="deleteCode({{.ID}}, {{$.product.ID}})">删除</button>
+                                        {{else}}
+                                            -
+                                        {{end}}
+                                    </td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination-container">
+                        {{$page := .page}}
+                        {{$totalPages := divf .total .limit | addf 0.999 | int}}
+                        
+                        <div class="pagination">
+                            {{if gt $page 1}}
+                                <a href="?page={{subf $page 1}}" class="pagination-btn">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            {{end}}
+                            
+                            {{if gt $totalPages 1}}
+                                {{range $i := seq 1 $totalPages}}
+                                    {{if and (or (le $i 3) (ge $i (subf $totalPages 2))) (or (and (ge $i (subf $page 2)) (le $i (addf $page 2))) (or (le $page 3) (ge $page (subf $totalPages 2))))}}
+                                        {{if eq $i $page}}
+                                            <span class="pagination-btn active">{{$i}}</span>
+                                        {{else}}
+                                            <a href="?page={{$i}}" class="pagination-btn">{{$i}}</a>
+                                        {{end}}
+                                    {{else if or (eq $i 4) (eq $i (subf $totalPages 3))}}
+                                        {{if and (gt $page 5) (lt $page (subf $totalPages 4))}}
+                                            <span class="pagination-ellipsis">...</span>
+                                        {{end}}
+                                    {{end}}
+                                {{end}}
+                            {{end}}
+                            
+                            {{if lt $page $totalPages}}
+                                <a href="?page={{addf $page 1}}" class="pagination-btn">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            {{end}}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <style>
+        /* Pagination */
+        .pagination-container {
+            margin-top: var(--spacing-lg);
+            display: flex;
+            justify-content: center;
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .pagination-btn {
+            min-width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 var(--spacing-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            transition: all var(--transition-fast);
+            text-decoration: none;
+        }
+
+        .pagination-btn:hover {
+            background: var(--bg-secondary);
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+        }
+
+        .pagination-btn.active {
+            background: var(--primary-600);
+            border-color: var(--primary-600);
+            color: white;
+        }
+
+        .pagination-ellipsis {
+            padding: 0 var(--spacing-sm);
+            color: var(--text-tertiary);
+        }
+    </style>
+    
+    <!-- Scripts -->
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Load saved theme
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        });
+
+        // Logout function
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                fetch('/api/logout', { method: 'POST' })
+                    .then(() => window.location.href = '/')
+                    .catch(err => console.error('Logout failed:', err));
+            }
+        }
+        
+        // Tab switching
+        function showTab(tab) {
+            const textForm = document.getElementById('textForm');
+            const fileForm = document.getElementById('fileForm');
+            const textTab = document.getElementById('textTab');
+            const fileTab = document.getElementById('fileTab');
+            
+            if (tab === 'text') {
+                textForm.classList.add('active');
+                fileForm.classList.remove('active');
+                textTab.classList.add('active');
+                fileTab.classList.remove('active');
+            } else {
+                fileForm.classList.add('active');
+                textForm.classList.remove('active');
+                fileTab.classList.add('active');
+                textTab.classList.remove('active');
+            }
+        }
+        
+        // Submit text codes
+        async function submitTextCodes(event) {
+            event.preventDefault();
+
+            const formData = new FormData();
+            formData.append('codes', event.target.codes.value);
+
+            try {
+                const response = await fetch('/admin/products/{{.product.ID}}/codes/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(result.message || '卡密添加成功');
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || '添加失败');
+                }
+            } catch (error) {
+                alert('添加失败: ' + error.message);
+            }
+        }
+        
+        // Delete code
+        async function deleteCode(id, productId) {
+            if (!confirm('确定要删除这个卡密吗？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/admin/codes/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert('删除成功');
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || '删除失败');
+                }
+            } catch (error) {
+                alert('删除失败: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

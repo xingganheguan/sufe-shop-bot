@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>商品管理</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { margin-bottom: 20px; }
+        .nav { margin-bottom: 20px; }
+        .nav a { margin-right: 10px; }
+        .product { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 50px auto; padding: 20px; width: 500px; }
+        button { padding: 5px 10px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>商品管理</h1>
+        <button onclick="window.location.href='/'">退出</button>
+    </div>
+    
+    <div class="nav">
+        <a href="/admin/">仪表盘</a>
+        <a href="/admin/products">商品管理</a>
+        <a href="/admin/orders">订单管理</a>
+    </div>
+    
+    <div>
+        <button id="testBtn" onclick="alert('按钮工作正常')">测试按钮</button>
+        <button id="addBtn">添加商品</button>
+    </div>
+    
+    <div id="productList">
+        {{range .products}}
+        <div class="product">
+            <h3>{{.Name}}</h3>
+            <p>描述: {{.Description}}</p>
+            <p>价格: {{$.currency}}{{printf "%.2f" (divf .PriceCents 100)}}</p>
+            <p>库存: {{.Stock}}</p>
+            <button onclick="editProduct({{.ID}})">编辑</button>
+            <button onclick="deleteProduct({{.ID}})">删除</button>
+        </div>
+        {{end}}
+    </div>
+    
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h2>添加/编辑商品</h2>
+            <form id="productForm">
+                <input type="hidden" id="productId">
+                <div>
+                    <label>名称:</label>
+                    <input type="text" id="productName" required>
+                </div>
+                <div>
+                    <label>描述:</label>
+                    <textarea id="productDesc"></textarea>
+                </div>
+                <div>
+                    <label>价格:</label>
+                    <input type="number" id="productPrice" step="0.01" required>
+                </div>
+                <button type="submit">保存</button>
+                <button type="button" onclick="closeModal()">取消</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        console.log('Script loaded');
+        
+        // 测试基本功能
+        document.getElementById('addBtn').onclick = function() {
+            console.log('Add button clicked');
+            document.getElementById('modal').style.display = 'block';
+            document.getElementById('productId').value = '';
+            document.getElementById('productForm').reset();
+        };
+        
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+        
+        function editProduct(id) {
+            console.log('Edit product', id);
+            alert('编辑产品 ID: ' + id);
+        }
+        
+        function deleteProduct(id) {
+            if (confirm('确定删除?')) {
+                fetch('/admin/products/' + id, { method: 'DELETE' })
+                    .then(function(response) {
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            alert('删除失败');
+                        }
+                    });
+            }
+        }
+        
+        document.getElementById('productForm').onsubmit = function(e) {
+            e.preventDefault();
+            console.log('Form submitted');
+            
+            var id = document.getElementById('productId').value;
+            var data = {
+                name: document.getElementById('productName').value,
+                description: document.getElementById('productDesc').value,
+                price_cents: Math.round(parseFloat(document.getElementById('productPrice').value) * 100)
+            };
+            
+            var url = id ? '/admin/products/' + id : '/admin/products';
+            var method = id ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(function(response) {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('保存失败');
+                }
+            });
+        };
+    </script>
+</body>
+</html>

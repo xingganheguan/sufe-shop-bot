@@ -1,0 +1,31 @@
+DEMO-CODE-001
+DEMO-CODE-002
+DEMO-CODE-003
+
+租户名: 演示账户001
+用户名: demo001@example.com
+密码: Demo-Pass-2025
+区域: 亚太地区
+激活码: APAC-2025-DEMO-001
+
+租户名: 演示账户002
+用户名: demo002@example.com
+密码: Demo-Pass-2025
+区域: 北美地区
+激活码: NA-2025-DEMO-002
+
+TEST-SINGLE-001
+TEST-SINGLE-002
+
+游戏账号: 王者荣耀体验号
+服务器: QQ1区
+账号: qq_demo_001
+密码: demo123456
+等级: 30级
+金币: 50000
+
+游戏账号: 原神测试号
+UID: 800999888
+密码: genshin_demo
+原石: 1600
+角色: 5星角色*3

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html data-theme="light">
+<head>
+    <title>用户详情 - 商城机器人管理中心</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="stylesheet" href="/static/css/theme.css?v=2">
+    <link rel="stylesheet" href="/static/css/components.css?v=2">
+    <link rel="stylesheet" href="/static/css/layout.css?v=1">
+    <link rel="stylesheet" href="/static/css/pages/user-detail.css">
+    <script>
+    function logout() {
+        fetch('/api/logout', { method: 'POST' })
+            .then(() => window.location.href = '/')
+            .catch(err => console.error('Logout failed:', err));
+    }
+    
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('已复制到剪贴板');
+        }).catch(err => {
+            console.error('复制失败:', err);
+        });
+    }
+    </script>
+    <link rel="stylesheet" href="/static/ui-enhancements.css">
+</head>
+<body class="page-container aurora-background">
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">商城机器人管理中心</div>
+            <div class="header-actions">
+                <button class="theme-toggle" onclick="toggleTheme()" title="切换主题 (Ctrl+Shift+T)">
+                    <span class="theme-toggle-icon sun">☀️</span>
+                    <span class="theme-toggle-icon moon">🌙</span>
+                </button>
+                <button class="btn btn-danger" onclick="logout()">退出登录</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="nav">
+            <a href="/admin/">仪表盘</a>
+            <a href="/admin/products">商品管理</a>
+            <a href="/admin/orders">订单管理</a>
+            <a href="/admin/users" class="active">用户管理</a>
+            <a href="/admin/recharge-cards">充值卡管理</a>
+            <a href="/admin/broadcast">消息推送</a>
+            <a href="/admin/faq">FAQ管理</a>
+            <a href="/admin/templates">消息模板</a>
+            <a href="/admin/tickets">工单管理</a>
+            <a href="/admin/settings">系统设置</a>
+        </div>
+        
+        <div class="breadcrumb">
+            <a href="/admin/users">用户管理</a> / {{.user.Username}}
+        </div>
+        
+        <div class="user-info-card">
+            <div class="user-header">
+                <div class="user-basic-info">
+                    <h1 class="user-name">{{.user.Username}}</h1>
+                    <div class="user-id-display">用户ID: {{.user.ID}} | Telegram ID: {{.user.TgUserID}}</div>
+                </div>
+                <div class="user-balance-section">
+                    <div class="balance-label">账户余额</div>
+                    <div class="balance-value">{{.currency}}{{printf "%.2f" (divf .user.BalanceCents 100)}}</div>
+                </div>
+            </div>
+            
+            <div class="user-details-grid">
+                    <div class="detail-item">
+                        <label>注册时间</label>
+                        <span>{{.user.CreatedAt.Format "2006-01-02 15:04:05"}}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>最后活跃</label>
+                        <span>{{.user.UpdatedAt.Format "2006-01-02 15:04:05"}}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>订单总数</label>
+                        <span>{{.orderCount}}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>消费总额</label>
+                        <span>{{.currency}}{{printf "%.2f" (divf .totalSpent 100)}}</span>
+                    </div>
+            </div>
+        </div>
+        
+        <div class="orders-section">
+            <h2 class="section-title">订单记录</h2>
+            <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>订单号</th>
+                        <th>商品</th>
+                        <th>金额</th>
+                        <th>状态</th>
+                        <th>卡密</th>
+                        <th>创建时间</th>
+                        <th>支付时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .orders}}
+                    <tr>
+                        <td><span class="order-id">#{{.ID}}</span></td>
+                        <td>{{if .Product}}{{.Product.Name}}{{else}}余额充值{{end}}</td>
+                        <td class="order-amount">{{$.currency}}{{printf "%.2f" (divf .AmountCents 100)}}</td>
+                        <td>
+                            {{if eq .Status "pending"}}
+                                <span class="order-status pending">待支付</span>
+                            {{else if eq .Status "paid"}}
+                                <span class="order-status paid">已支付</span>
+                            {{else if eq .Status "delivered"}}
+                                <span class="order-status delivered">已发货</span>
+                            {{else if eq .Status "paid_no_stock"}}
+                                <span class="order-status paid_no_stock">缺货</span>
+                            {{else if eq .Status "failed_delivery"}}
+                                <span class="order-status failed_delivery">发货失败</span>
+                            {{else if eq .Status "expired"}}
+                                <span class="order-status expired">已过期</span>
+                            {{else}}
+                                <span class="order-status">{{.Status}}</span>
+                            {{end}}
+                        </td>
+                        <td>
+                            {{if .Code}}
+                                <pre class="code-text" onclick="copyToClipboard('{{.Code.Code}}')" 
+                                     title="点击复制">{{.Code.Code}}</pre>
+                            {{else}}
+                                -
+                            {{end}}
+                        </td>
+                        <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+                        <td>{{if .PaidAt}}{{.PaidAt.Format "2006-01-02 15:04"}}{{else}}-{{end}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+    <script src="/static/theme.js"></script>
+    <script src="/static/ui-enhancements.js"></script>
+    <script>
+        function toggleTheme() {
+            if (window.themeManager) {
+                window.themeManager.toggleTheme();
+            }
+        }
+    </script>
+</body>
+</html>

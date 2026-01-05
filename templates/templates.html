@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>消息模板 - 商城机器人管理中心</title>
+    
+    <!-- Modern Theme System -->
+    <link rel="stylesheet" href="/static/css/modern-theme.css?v=1">
+    <link rel="stylesheet" href="/static/css/modern-components.css?v=1">
+    <link rel="stylesheet" href="/static/css/modern-layout.css?v=1">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Page Styles -->
+    <style>
+        .info-box {
+            background: var(--info-bg);
+            border: 1px solid var(--info-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .info-box h4 {
+            color: var(--info-color);
+            margin-top: 0;
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .info-box h4:before {
+            content: '\f05a';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+        }
+        
+        .info-box code {
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            color: var(--primary-color);
+        }
+        
+        .template-group {
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .template-group h3 {
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-sm);
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .template-group h3:before {
+            content: '\f1ea';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            color: var(--primary-color);
+        }
+        
+        .template-variables {
+            background: var(--bg-secondary);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-md);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .variable {
+            display: inline-block;
+            background: var(--surface-color);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            margin: var(--spacing-xs);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            color: var(--primary-color);
+            border: 1px solid var(--border-color);
+        }
+        
+        .template-item {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-md);
+            transition: var(--transition-default);
+        }
+        
+        .template-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .template-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .template-lang {
+            background: var(--primary-bg);
+            color: var(--primary-color);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .template-status {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background: var(--success-bg);
+            color: var(--success-color);
+        }
+        
+        .status-inactive {
+            background: var(--danger-bg);
+            color: var(--danger-color);
+        }
+        
+        .template-preview {
+            background: var(--bg-secondary);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            margin-bottom: var(--spacing-md);
+            color: var(--text-secondary);
+        }
+        
+        .template-textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: var(--spacing-md);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            resize: vertical;
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .template-textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--primary-bg);
+        }
+        
+        .template-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            justify-content: flex-end;
+        }
+        
+        .edit-form {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    商城机器人管理中心
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <i class="fas fa-sun sun-icon theme-toggle-icon"></i>
+                        <i class="fas fa-moon moon-icon theme-toggle-icon"></i>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        退出登录
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">主要功能</div>
+                    <a href="/admin/">
+                        <i class="fas fa-tachometer-alt nav-icon"></i>
+                        仪表盘
+                    </a>
+                    <a href="/admin/products">
+                        <i class="fas fa-box nav-icon"></i>
+                        商品管理
+                    </a>
+                    <a href="/admin/orders">
+                        <i class="fas fa-shopping-cart nav-icon"></i>
+                        订单管理
+                    </a>
+                    <a href="/admin/users">
+                        <i class="fas fa-users nav-icon"></i>
+                        用户管理
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">运营工具</div>
+                    <a href="/admin/recharge-cards">
+                        <i class="fas fa-credit-card nav-icon"></i>
+                        充值卡管理
+                    </a>
+                    <a href="/admin/broadcast">
+                        <i class="fas fa-bullhorn nav-icon"></i>
+                        消息推送
+                    </a>
+                    <a href="/admin/faq">
+                        <i class="fas fa-question-circle nav-icon"></i>
+                        FAQ管理
+                    </a>
+                    <a href="/admin/templates" class="active">
+                        <i class="fas fa-file-alt nav-icon"></i>
+                        消息模板
+                    </a>
+                    <a href="/admin/tickets">
+                        <i class="fas fa-ticket-alt nav-icon"></i>
+                        工单管理
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <a href="/admin/settings">
+                        <i class="fas fa-cog nav-icon"></i>
+                        系统设置
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="container">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1 class="page-title">消息模板管理</h1>
+                    <p class="page-subtitle">管理系统消息模板</p>
+                </div>
+
+            <div class="info-box">
+                <h4>模板变量使用指南</h4>
+                <p>使用Go模板语法来插入变量: <code>{{.VariableName}}</code></p>
+                <p>示例: <code>订单ID: {{.OrderID}}</code></p>
+            </div>
+            
+            {{range $code, $templates := .templateMap}}
+            <div class="template-group">
+                <h3>{{$code}}</h3>
+                <div class="template-variables">
+                    <i class="fas fa-code"></i> 可用变量:
+                    {{range index $.variables $code}}
+                    <span class="variable">{{.}}</span>
+                    {{end}}
+                </div>
+                
+                {{range $templates}}
+                <div class="template-item" id="template-{{.ID}}">
+                    <div class="template-header">
+                        <span class="template-lang">
+                            <i class="fas fa-language"></i> {{.Language}}
+                        </span>
+                        <span class="template-status {{if .IsActive}}status-active{{else}}status-inactive{{end}}">
+                            {{if .IsActive}}<i class="fas fa-check-circle"></i> 启用{{else}}<i class="fas fa-times-circle"></i> 停用{{end}}
+                        </span>
+                    </div>
+                    
+                    <div class="edit-form" style="display: none;">
+                        <textarea class="template-textarea" id="content-{{.ID}}" data-original="{{.Content}}">{{.Content}}</textarea>
+                        <div class="template-actions">
+                            <button class="btn btn-success" onclick="saveTemplate({{.ID}})">
+                                <i class="fas fa-save"></i> 保存
+                            </button>
+                            <button class="btn btn-secondary" onclick="cancelEdit({{.ID}})">
+                                <i class="fas fa-times"></i> 取消
+                            </button>
+                            <button class="btn btn-warning" onclick="toggleStatus({{.ID}}, {{.IsActive}})">
+                                {{if .IsActive}}<i class="fas fa-pause"></i> 停用{{else}}<i class="fas fa-play"></i> 启用{{end}}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="view-mode">
+                        <div class="template-preview">{{.Content}}</div>
+                        <div class="template-actions">
+                            <button class="btn btn-primary" onclick="editTemplate({{.ID}})">
+                                <i class="fas fa-edit"></i> 编辑
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+            </div>
+        </main>
+    </div>
+    
+    <!-- Scripts -->
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Load saved theme
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        });
+        
+        // Logout function
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                fetch('/api/logout', { method: 'POST' })
+                    .then(() => window.location.href = '/')
+                    .catch(err => console.error('Logout failed:', err));
+            }
+        }
+        
+        const authToken = localStorage.getItem('adminToken') || '';
+        
+        function editTemplate(id) {
+            document.querySelector(`#template-${id} .view-mode`).style.display = 'none';
+            document.querySelector(`#template-${id} .edit-form`).style.display = 'block';
+        }
+        
+        function cancelEdit(id) {
+            const textarea = document.getElementById(`content-${id}`);
+            textarea.value = textarea.dataset.original;
+            document.querySelector(`#template-${id} .view-mode`).style.display = 'block';
+            document.querySelector(`#template-${id} .edit-form`).style.display = 'none';
+        }
+        
+        async function saveTemplate(id) {
+            const content = document.getElementById(`content-${id}`).value;
+            const isActive = document.querySelector(`#template-${id} .template-status`).classList.contains('status-active');
+            
+            try {
+                const response = await fetch(`/admin/templates/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: content,
+                        is_active: isActive
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(result.message || '模板已保存');
+                    location.reload();
+                } else {
+                    alert('保存失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('保存失败: ' + error.message);
+            }
+        }
+        
+        async function toggleStatus(id, currentStatus) {
+            const content = document.getElementById(`content-${id}`).value;
+            const newStatus = !currentStatus;
+            
+            try {
+                const response = await fetch(`/admin/templates/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + authToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: content,
+                        is_active: newStatus
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(result.message || '状态已更新');
+                    location.reload();
+                } else {
+                    alert('更新失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('更新失败: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

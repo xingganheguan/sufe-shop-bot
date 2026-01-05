@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>消息推送 - 商城机器人管理中心</title>
+    
+    <!-- Modern CSS -->
+    <link rel="stylesheet" href="/static/css/modern-theme.css?v=2">
+    <link rel="stylesheet" href="/static/css/modern-components.css?v=2">
+    <link rel="stylesheet" href="/static/css/modern-layout.css?v=2">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Statistics Cards */
+        .stat-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            text-align: center;
+            transition: var(--transition-fast);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .stat-icon {
+            font-size: 2rem;
+            color: var(--primary-600);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-2xl) 0;
+        }
+        
+        .empty-state-icon {
+            font-size: 3rem;
+            color: var(--text-tertiary);
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        /* Form Styling */
+        .form-radio {
+            margin-right: var(--spacing-xs);
+        }
+        
+        .form-checkbox {
+            margin-right: var(--spacing-xs);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    商城机器人管理中心
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <i class="fas fa-sun sun-icon theme-toggle-icon"></i>
+                        <i class="fas fa-moon moon-icon theme-toggle-icon"></i>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        退出登录
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">主要功能</div>
+                    <a href="/admin/">
+                        <i class="fas fa-tachometer-alt nav-icon"></i>
+                        仪表盘
+                    </a>
+                    <a href="/admin/products">
+                        <i class="fas fa-box nav-icon"></i>
+                        商品管理
+                    </a>
+                    <a href="/admin/orders">
+                        <i class="fas fa-shopping-cart nav-icon"></i>
+                        订单管理
+                    </a>
+                    <a href="/admin/users">
+                        <i class="fas fa-users nav-icon"></i>
+                        用户管理
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">运营工具</div>
+                    <a href="/admin/recharge-cards">
+                        <i class="fas fa-credit-card nav-icon"></i>
+                        充值卡管理
+                    </a>
+                    <a href="/admin/broadcast" class="active">
+                        <i class="fas fa-bullhorn nav-icon"></i>
+                        消息推送
+                    </a>
+                    <a href="/admin/faq">
+                        <i class="fas fa-question-circle nav-icon"></i>
+                        FAQ管理
+                    </a>
+                    <a href="/admin/templates">
+                        <i class="fas fa-file-alt nav-icon"></i>
+                        消息模板
+                    </a>
+                    <a href="/admin/tickets">
+                        <i class="fas fa-ticket-alt nav-icon"></i>
+                        工单管理
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <a href="/admin/settings">
+                        <i class="fas fa-cog nav-icon"></i>
+                        系统设置
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="container">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1 class="page-title">消息推送</h1>
+                    <p class="page-subtitle">向用户和群组发送消息通知</p>
+                    
+                    <div class="page-actions">
+                        <a href="/admin/broadcast/history" class="btn btn-secondary">
+                            <i class="fas fa-history"></i> 推送历史
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Statistics Cards -->
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="stat-card">
+                        <i class="fas fa-users stat-icon"></i>
+                        <div class="stat-value">{{.stats.TotalUsers}}</div>
+                        <div class="stat-label">总用户数</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-users-cog stat-icon"></i>
+                        <div class="stat-value">{{.stats.TotalGroups}}</div>
+                        <div class="stat-label">总群组数</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-broadcast-tower stat-icon"></i>
+                        <div class="stat-value">{{.stats.ActiveGroups}}</div>
+                        <div class="stat-label">活跃群组数</div>
+                    </div>
+                </div>
+
+                <!-- Broadcast Form -->
+                <div class="content-section">
+                    <h3 class="text-lg font-semibold mb-4">
+                        <i class="fas fa-paper-plane"></i> 发送新消息
+                    </h3>
+                    <form id="broadcastForm">
+                        <div class="form-group">
+                            <label class="form-label">消息类型</label>
+                            <select name="type" id="type" class="form-control form-select">
+                                <option value="announcement">公告通知</option>
+                                <option value="stock_update">上货通知</option>
+                                <option value="promotion">促销活动</option>
+                                <option value="custom">自定义消息</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">目标用户</label>
+                            <div class="flex gap-4">
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="target_type" value="all" class="form-radio" checked>
+                                    <span>所有用户和群组</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="target_type" value="users" class="form-radio">
+                                    <span>仅私聊用户</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="target_type" value="groups" class="form-radio">
+                                    <span>仅群组</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">消息内容</label>
+                            <textarea name="content" id="content" class="form-control" rows="8"
+                                      placeholder="请输入要推送的消息内容..." required></textarea>
+                            <p class="text-sm text-muted mt-1">支持 Markdown 格式，如 *粗体*、_斜体_、`代码`等</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" name="include_products" class="form-checkbox">
+                                <span>在消息下方添加产品列表（适用于上货通知）</span>
+                            </label>
+                        </div>
+                        
+                        <div class="flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                                发送消息
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- History Section -->
+                <div class="content-section">
+                    <h3 class="text-lg font-semibold mb-4">历史记录</h3>
+                    {{if .broadcasts}}
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>发送时间</th>
+                                        <th>消息类型</th>
+                                        <th>目标</th>
+                                        <th>状态</th>
+                                        <th>详情</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {{range .broadcasts}}
+                                    <tr>
+                                        <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+                                        <td>
+                                            {{if eq .Type "announcement"}}公告通知{{end}}
+                                            {{if eq .Type "stock_update"}}上货通知{{end}}
+                                            {{if eq .Type "promotion"}}促销活动{{end}}
+                                            {{if eq .Type "custom"}}自定义{{end}}
+                                        </td>
+                                        <td>
+                                            {{if eq .TargetType "all"}}所有用户{{end}}
+                                            {{if eq .TargetType "users"}}仅私聊{{end}}
+                                            {{if eq .TargetType "groups"}}仅群组{{end}}
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-success">已发送</span>
+                                        </td>
+                                        <td>
+                                            <a href="/admin/broadcast/{{.ID}}" class="text-primary-600">查看详情</a>
+                                        </td>
+                                    </tr>
+                                    {{end}}
+                                </tbody>
+                            </table>
+                        </div>
+                    {{else}}
+                        <div class="empty-state">
+                            <i class="fas fa-bullhorn empty-state-icon"></i>
+                            <p>暂无推送记录</p>
+                            <p class="text-sm text-muted">发送第一条推送消息吧！</p>
+                        </div>
+                    {{end}}
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Scripts -->
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Load saved theme
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            
+            // Broadcast form handler
+            const broadcastForm = document.getElementById('broadcastForm');
+            if (broadcastForm) {
+                console.log('Broadcast form found, adding event listener');
+                broadcastForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    console.log('Form submitted');
+                    
+                    const formData = new FormData(e.target);
+                    const data = {
+                        type: formData.get('type'),
+                        target_type: formData.get('target_type'),
+                        content: formData.get('content'),
+                        include_products: formData.get('include_products') === 'on'
+                    };
+                    
+                    console.log('Form data:', data);
+                    
+                    const targetText = data.target_type === 'all' ? '所有用户和群组' : 
+                                      data.target_type === 'users' ? '所有用户' : '所有群组';
+                    
+                    if (!confirm(`确定要向 ${targetText} 发送此消息吗？`)) {
+                        return;
+                    }
+                    
+                    const authToken = localStorage.getItem('adminToken') || '';
+                    
+                    // Prepare headers
+                    const headers = {
+                        'Content-Type': 'application/json'
+                    };
+                    
+                    // Add authorization header if token exists
+                    if (authToken) {
+                        headers['Authorization'] = 'Bearer ' + authToken;
+                    }
+                    
+                    try {
+                        console.log('Sending request to /admin/broadcast/send');
+                        console.log('Headers:', headers);
+                        console.log('Cookies:', document.cookie);
+                        const response = await fetch('/admin/broadcast/send', {
+                            method: 'POST',
+                            headers: headers,
+                            credentials: 'same-origin',  // Include cookies
+                            body: JSON.stringify(data)
+                        });
+                        
+                        console.log('Response status:', response.status);
+                        
+                        // Check if we got redirected to login
+                        if (response.redirected || response.status === 302) {
+                            console.error('Authentication failed - redirected to login');
+                            alert('认证失败，请重新登录');
+                            window.location.href = '/admin/login';
+                            return;
+                        }
+                        
+                        const result = await response.json();
+                        console.log('Response data:', result);
+                        
+                        if (response.ok) {
+                            alert(result.message || '消息发送成功！');
+                            e.target.reset();
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            alert('发送失败: ' + (result.error || '未知错误'));
+                        }
+                    } catch (error) {
+                        console.error('Request failed:', error);
+                        alert('发送失败: ' + error.message);
+                    }
+                });
+            } else {
+                console.error('Broadcast form not found!');
+            }
+        });
+        
+        // Logout function
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                fetch('/api/logout', { method: 'POST' })
+                    .then(() => window.location.href = '/')
+                    .catch(err => console.error('Logout failed:', err));
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订单管理 - 商城机器人管理中心</title>
+    
+    <!-- Modern CSS -->
+    <link rel="stylesheet" href="/static/css/modern-theme.css?v=1">
+    <link rel="stylesheet" href="/static/css/modern-components.css?v=1">
+    <link rel="stylesheet" href="/static/css/modern-layout.css?v=1">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    商城机器人管理中心
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <i class="fas fa-sun sun-icon theme-toggle-icon"></i>
+                        <i class="fas fa-moon moon-icon theme-toggle-icon"></i>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        退出登录
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">主要功能</div>
+                    <a href="/admin/">
+                        <i class="fas fa-tachometer-alt nav-icon"></i>
+                        仪表盘
+                    </a>
+                    <a href="/admin/products">
+                        <i class="fas fa-box nav-icon"></i>
+                        商品管理
+                    </a>
+                    <a href="/admin/orders" class="active">
+                        <i class="fas fa-shopping-cart nav-icon"></i>
+                        订单管理
+                    </a>
+                    <a href="/admin/users">
+                        <i class="fas fa-users nav-icon"></i>
+                        用户管理
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">运营工具</div>
+                    <a href="/admin/recharge-cards">
+                        <i class="fas fa-credit-card nav-icon"></i>
+                        充值卡管理
+                    </a>
+                    <a href="/admin/broadcast">
+                        <i class="fas fa-bullhorn nav-icon"></i>
+                        消息推送
+                    </a>
+                    <a href="/admin/faq">
+                        <i class="fas fa-question-circle nav-icon"></i>
+                        FAQ管理
+                    </a>
+                    <a href="/admin/templates">
+                        <i class="fas fa-file-alt nav-icon"></i>
+                        消息模板
+                    </a>
+                    <a href="/admin/tickets">
+                        <i class="fas fa-ticket-alt nav-icon"></i>
+                        工单管理
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <a href="/admin/settings">
+                        <i class="fas fa-cog nav-icon"></i>
+                        系统设置
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="container">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1 class="page-title">订单管理</h1>
+                    <p class="page-subtitle">查看和管理所有订单记录</p>
+                </div>
+
+                <!-- Filters -->
+                <div class="content-section mb-4">
+                    <form method="get" action="">
+                        <div class="grid grid-cols-4 gap-4 mb-4">
+                            <div class="form-group mb-0">
+                                <label class="form-label">订单状态</label>
+                                <select name="status" class="form-control form-select">
+                                    <option value="">全部</option>
+                                    <option value="pending" {{if eq .status "pending"}}selected{{end}}>待支付</option>
+                                    <option value="paid" {{if eq .status "paid"}}selected{{end}}>已支付</option>
+                                    <option value="delivered" {{if eq .status "delivered"}}selected{{end}}>已发货</option>
+                                    <option value="paid_no_stock" {{if eq .status "paid_no_stock"}}selected{{end}}>缺货</option>
+                                    <option value="failed_delivery" {{if eq .status "failed_delivery"}}selected{{end}}>发货失败</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group mb-0">
+                                <label class="form-label">开始日期</label>
+                                <input type="date" name="start_date" value="{{.start_date}}" class="form-control">
+                            </div>
+                            
+                            <div class="form-group mb-0">
+                                <label class="form-label">结束日期</label>
+                                <input type="date" name="end_date" value="{{.end_date}}" class="form-control">
+                            </div>
+                            
+                            <div class="form-group mb-0 flex items-end">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i>
+                                    筛选
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Orders Table -->
+                <div class="content-section">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>订单号</th>
+                                    <th>用户</th>
+                                    <th>商品</th>
+                                    <th>金额</th>
+                                    <th>状态</th>
+                                    <th>卡密</th>
+                                    <th>支付单号</th>
+                                    <th>创建时间</th>
+                                    <th>支付时间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{range .orders}}
+                                <tr>
+                                    <td>
+                                        <span class="font-semibold">#{{.ID}}</span>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <div class="font-medium">{{.User.Username}}</div>
+                                            <div class="text-xs text-muted">ID: {{.User.TgUserID}}</div>
+                                        </div>
+                                    </td>
+                                    <td>{{if .Product}}{{.Product.Name}}{{else}}余额充值{{end}}</td>
+                                    <td class="font-semibold">{{$.currency}}{{printf "%.2f" (divf .AmountCents 100)}}</td>
+                                    <td>
+                                        {{if eq .Status "pending"}}
+                                            <span class="badge badge-warning">待支付</span>
+                                        {{else if eq .Status "paid"}}
+                                            <span class="badge badge-info">已支付</span>
+                                        {{else if eq .Status "delivered"}}
+                                            <span class="badge badge-success">已发货</span>
+                                        {{else if eq .Status "paid_no_stock"}}
+                                            <span class="badge badge-danger">缺货</span>
+                                        {{else if eq .Status "failed_delivery"}}
+                                            <span class="badge badge-danger">发货失败</span>
+                                        {{else}}
+                                            <span class="badge">{{.Status}}</span>
+                                        {{end}}
+                                    </td>
+                                    <td>
+                                        {{if .Code}}
+                                            <code class="code-snippet" onclick="copyToClipboard('{{.Code.Code}}')" title="点击复制">{{.Code.Code}}</code>
+                                        {{else}}
+                                            -
+                                        {{end}}
+                                    </td>
+                                    <td>
+                                        {{if .EpayOutTradeNo}}
+                                            <span class="text-xs" title="{{.EpayOutTradeNo}}">{{.EpayOutTradeNo}}</span>
+                                        {{else}}
+                                            -
+                                        {{end}}
+                                    </td>
+                                    <td class="text-sm">{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+                                    <td class="text-sm">{{if .PaidAt}}{{.PaidAt.Format "2006-01-02 15:04"}}{{else}}-{{end}}</td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="pagination-container">
+                        {{$page := .page}}
+                        {{$totalPages := divf .total .limit | addf 0.999 | int}}
+                        
+                        <div class="pagination">
+                            {{if gt $page 1}}
+                                <a href="?page={{subf $page 1}}&status={{.status}}&start_date={{.start_date}}&end_date={{.end_date}}" class="pagination-btn">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            {{end}}
+                            
+                            {{if gt $totalPages 1}}
+                                {{range $i := seq 1 $totalPages}}
+                                    {{if and (or (le $i 3) (ge $i (subf $totalPages 2))) (or (and (ge $i (subf $page 2)) (le $i (addf $page 2))) (or (le $page 3) (ge $page (subf $totalPages 2))))}}
+                                        {{if eq $i $page}}
+                                            <a href="?page={{$i}}&status={{$.status}}&start_date={{$.start_date}}&end_date={{$.end_date}}" class="pagination-btn active">{{$i}}</a>
+                                        {{else}}
+                                            <a href="?page={{$i}}&status={{$.status}}&start_date={{$.start_date}}&end_date={{$.end_date}}" class="pagination-btn">{{$i}}</a>
+                                        {{end}}
+                                    {{else if or (eq $i 4) (eq $i (subf $totalPages 3))}}
+                                        {{if and (gt $page 5) (lt $page (subf $totalPages 4))}}
+                                            <span class="pagination-ellipsis">...</span>
+                                        {{end}}
+                                    {{end}}
+                                {{end}}
+                            {{end}}
+                            
+                            {{if lt $page $totalPages}}
+                                <a href="?page={{addf $page 1}}&status={{.status}}&start_date={{.start_date}}&end_date={{.end_date}}" class="pagination-btn">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            {{end}}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <style>
+        /* Table Responsive */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Code Snippet */
+        .code-snippet {
+            background: var(--bg-secondary);
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .code-snippet:hover {
+            background: var(--primary-100);
+            color: var(--primary-700);
+        }
+
+        /* Pagination */
+        .pagination-container {
+            margin-top: var(--spacing-lg);
+            display: flex;
+            justify-content: center;
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .pagination-btn {
+            min-width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 var(--spacing-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            transition: all var(--transition-fast);
+            text-decoration: none;
+        }
+
+        .pagination-btn:hover {
+            background: var(--bg-secondary);
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+        }
+
+        .pagination-btn.active {
+            background: var(--primary-600);
+            border-color: var(--primary-600);
+            color: white;
+        }
+
+        .pagination-ellipsis {
+            padding: 0 var(--spacing-sm);
+            color: var(--text-tertiary);
+        }
+
+        /* Toast Styles */
+        .toast-container {
+            position: fixed;
+            top: var(--spacing-lg);
+            right: var(--spacing-lg);
+            z-index: var(--z-tooltip);
+        }
+
+        .toast {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            min-width: 300px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast-success {
+            border-color: var(--success-200);
+            background: var(--success-50);
+            color: var(--success-700);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .grid-cols-4 {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .grid-cols-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <!-- Scripts -->
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Load saved theme
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        });
+
+        // Logout function
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                fetch('/api/logout', { method: 'POST' })
+                    .then(() => window.location.href = '/')
+                    .catch(err => console.error('Logout failed:', err));
+            }
+        }
+
+        // Copy to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('已复制到剪贴板');
+            }).catch(err => {
+                console.error('复制失败:', err);
+            });
+        }
+
+        // Toast notification
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-success';
+            toast.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

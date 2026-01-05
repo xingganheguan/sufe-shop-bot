@@ -1,0 +1,31 @@
+services:
+  app:
+    # Use pre-built image from GitHub Container Registry
+    # Or build locally by uncommenting the build section below
+    image: ghcr.io/shannon-x/sufe-shop-bot:latest
+    # build: .
+    container_name: shopbot-app
+    env_file:
+      - .env.production
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./templates:/app/templates:ro
+      - ./static:/app/static:ro
+      - ./logs:/app/logs
+      - ./data:/app/data
+    ports:
+      - "9147:9147"
+    networks:
+      - shopbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9147/healthz" ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+networks:
+  shopbot-network:
+    driver: bridge

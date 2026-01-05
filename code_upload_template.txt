@@ -1,0 +1,56 @@
+[Single-line Codes Example]
+===========================
+ABC123456789
+DEF987654321
+GHI456789123
+JKL321654987
+MNO789456123
+
+[Multi-line Codes Example - Separated by empty lines]
+=====================================================
+Tenant: elmejorporteroesfran
+Username: elmejorporteroesfran@hotmail.com
+Password: mudvoc-nitsa0-Nifjas
+Region: Japan East (Tokyo)
+Codes: 897884934218 804031171594 747973230039
+
+Tenant: bestusertenant2023
+Username: user2023@outlook.com
+Password: secure-pass-2023
+Region: US West
+Codes: 123456789012 987654321098 456789123456
+
+[Game Account Example]
+======================
+Game: Mobile Legends
+Server: Asia
+Account: ml_player001
+Password: game123456
+Level: Max
+
+Game: PUBG Mobile
+Server: Global
+ID: 5123456789
+Password: pubg2025
+UC: 8100
+
+[Software License Example]
+==========================
+SOFTWARE-KEY-AAAAA-BBBBB-CCCCC-DDDDD
+
+Product: Microsoft Office
+Key: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX
+Version: Professional Plus
+Devices: 5
+
+[Important Notes]
+=================
+1. File format: Plain text file (.txt) only
+2. Encoding: UTF-8
+3. Single-line codes: One code per line
+4. Multi-line codes:
+   - No empty lines within a single code
+   - Separate different codes with empty lines
+   - Separator lines (=== or ---) are treated as empty lines
+5. Special characters supported: @ # $ % & * - _ + = : ; , . / \ |
+6. Maximum file size: 10MB recommended

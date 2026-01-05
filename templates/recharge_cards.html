@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>充值卡管理 - 商城机器人管理中心</title>
+    
+    <!-- Modern Theme System -->
+    <link rel="stylesheet" href="/static/css/modern-theme.css?v=1">
+    <link rel="stylesheet" href="/static/css/modern-components.css?v=1">
+    <link rel="stylesheet" href="/static/css/modern-layout.css?v=1">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Page Styles -->
+    <style>
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .stat-card {
+            background: var(--surface-color);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: var(--transition-default);
+        }
+        
+        .stat-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-top: var(--spacing-sm);
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .download-section {
+            background: var(--success-bg);
+            border: 1px solid var(--success-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-xl) 0;
+            text-align: center;
+        }
+        
+        .download-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            justify-content: center;
+            margin-top: var(--spacing-lg);
+            flex-wrap: wrap;
+        }
+        
+        .recharge-code {
+            font-family: var(--font-mono);
+            background: var(--bg-secondary);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition-default);
+        }
+        
+        .recharge-code:hover {
+            background: var(--primary-bg);
+            color: var(--primary-color);
+        }
+        
+        .status-badge {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: inline-block;
+        }
+        
+        .status-active {
+            background: var(--success-bg);
+            color: var(--success-color);
+        }
+        
+        .status-used {
+            background: var(--danger-bg);
+            color: var(--danger-color);
+        }
+        
+        .status-expired {
+            background: var(--warning-bg);
+            color: var(--warning-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    商城机器人管理中心
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <i class="fas fa-sun sun-icon theme-toggle-icon"></i>
+                        <i class="fas fa-moon moon-icon theme-toggle-icon"></i>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        退出登录
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">主要功能</div>
+                    <a href="/admin/">
+                        <i class="fas fa-tachometer-alt nav-icon"></i>
+                        仪表盘
+                    </a>
+                    <a href="/admin/products">
+                        <i class="fas fa-box nav-icon"></i>
+                        商品管理
+                    </a>
+                    <a href="/admin/orders">
+                        <i class="fas fa-shopping-cart nav-icon"></i>
+                        订单管理
+                    </a>
+                    <a href="/admin/users">
+                        <i class="fas fa-users nav-icon"></i>
+                        用户管理
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">运营工具</div>
+                    <a href="/admin/recharge-cards" class="active">
+                        <i class="fas fa-credit-card nav-icon"></i>
+                        充值卡管理
+                    </a>
+                    <a href="/admin/broadcast">
+                        <i class="fas fa-bullhorn nav-icon"></i>
+                        消息推送
+                    </a>
+                    <a href="/admin/faq">
+                        <i class="fas fa-question-circle nav-icon"></i>
+                        FAQ管理
+                    </a>
+                    <a href="/admin/templates">
+                        <i class="fas fa-file-alt nav-icon"></i>
+                        消息模板
+                    </a>
+                    <a href="/admin/tickets">
+                        <i class="fas fa-ticket-alt nav-icon"></i>
+                        工单管理
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <a href="/admin/settings">
+                        <i class="fas fa-cog nav-icon"></i>
+                        系统设置
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="container">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1 class="page-title">充值卡管理</h1>
+                    <p class="page-subtitle">管理您的充值卡和批量生成</p>
+                    
+                    <div class="page-actions">
+                    <a href="/admin/download-template" class="btn btn-primary">
+                        <i class="fas fa-download"></i> 下载上传模板
+                    </a>
+                </div>
+            </div>
+
+            {{if .error}}
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i> {{.error}}
+            </div>
+            {{end}}
+            
+            {{if .success}}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> {{.success}}
+            </div>
+            {{end}}
+
+            <!-- Statistics Cards -->
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-label">总充值卡数</div>
+                    <div class="stat-value">{{.totalCount}}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">可用充值卡</div>
+                    <div class="stat-value">{{.active}}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">已用完</div>
+                    <div class="stat-value">{{.fullyUsed}}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">已过期</div>
+                    <div class="stat-value">{{.expired}}</div>
+                </div>
+            </div>
+
+            <!-- Generate Cards Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-plus-circle"></i> 生成新充值卡
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form id="generateForm" class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">前缀</label>
+                            <input type="text" name="prefix" value="RC" maxlength="10" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">数量</label>
+                            <input type="number" name="count" min="1" max="1000" value="10" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">金额 ({{currency}})</label>
+                            <input type="number" name="amount" min="1" step="0.01" value="10.00" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">总使用次数</label>
+                            <input type="number" name="max_uses" min="1" max="999999" value="1" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">单用户限制</label>
+                            <input type="number" name="max_uses_per_user" min="1" max="999999" value="1" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">有效期</label>
+                            <select name="expires_in" class="form-control">
+                                <option value="86400">1天</option>
+                                <option value="259200">3天</option>
+                                <option value="604800" selected>7天</option>
+                                <option value="2592000">30天</option>
+                                <option value="7776000">90天</option>
+                                <option value="31536000">365天</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" form="generateForm" class="btn btn-primary">
+                        <i class="fas fa-magic"></i> 生成充值卡
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upload Cards Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-upload"></i> 批量导入充值卡
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form id="uploadForm" method="post" action="/admin/recharge-cards/upload" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label class="form-label">选择文件</label>
+                            <input type="file" name="file" accept=".txt,.csv" required class="form-control">
+                            <small class="form-text">文件格式：每行一个充值码，��式为 "充值码,金额,总使用次数,单用户限制"</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" form="uploadForm" class="btn btn-success">
+                        <i class="fas fa-cloud-upload-alt"></i> 上传充值卡
+                    </button>
+                </div>
+            </div>
+
+            <!-- Download Section -->
+            <div class="download-section" id="downloadCodes" style="display: none;">
+                <i class="fas fa-check-circle" style="font-size: 3rem; color: var(--success-color); margin-bottom: 1rem;"></i>
+                <h3>充值卡生成成功！</h3>
+                <p>请下载或复制充值码进行保存</p>
+                <div class="download-actions">
+                    <button class="btn btn-success" onclick="downloadTxt()">
+                        <i class="fas fa-file-alt"></i> 下载TXT文件
+                    </button>
+                    <button class="btn btn-success" onclick="downloadCsv()">
+                        <i class="fas fa-file-csv"></i> 下载CSV文件
+                    </button>
+                    <button class="btn btn-secondary" onclick="copyAllCodes()">
+                        <i class="fas fa-copy"></i> 复制所有充值码
+                    </button>
+                </div>
+                <textarea id="codesTextarea" readonly style="display: none;"></textarea>
+            </div>
+
+            <!-- Cards Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-list"></i> 充值卡列表
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>充值码</th>
+                                    <th>金额</th>
+                                    <th>使用次数</th>
+                                    <th>状态</th>
+                                    <th>过期时间</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{range .cards}}
+                                <tr>
+                                    <td>
+                                        <span class="recharge-code" onclick="copyCode('{{.Code}}')" title="点击复制">
+                                            {{.Code}}
+                                        </span>
+                                    </td>
+                                    <td>{{$.currency}}{{printf "%.2f" (divf .AmountCents 100)}}</td>
+                                    <td>{{.UsedCount}}/{{.MaxUses}}</td>
+                                    <td>
+                                        {{if eq .Status "active"}}
+                                            <span class="status-badge status-active">可用</span>
+                                        {{else if eq .Status "fully_used"}}
+                                            <span class="status-badge status-used">已用完</span>
+                                        {{else if eq .Status "expired"}}
+                                            <span class="status-badge status-expired">已过期</span>
+                                        {{end}}
+                                    </td>
+                                    <td>{{.ExpiresAt.Format "2006-01-02 15:04"}}</td>
+                                    <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+                                    <td>
+                                        {{if eq .Status "active"}}
+                                            <button class="btn btn-sm btn-danger" onclick="deleteCard({{.ID}})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        {{end}}
+                                    </td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {{if gt .totalPages 1}}
+                <div class="card-footer">
+                    <div class="pagination">
+                        {{if gt .page 1}}
+                            <a href="?page={{subf .page 1}}" class="pagination-link">
+                                <i class="fas fa-chevron-left"></i> 上一页
+                            </a>
+                        {{end}}
+                        
+                        {{range $i := seq 1 .totalPages}}
+                            {{if eq $i $.page}}
+                                <span class="pagination-link active">{{$i}}</span>
+                            {{else}}
+                                <a href="?page={{$i}}" class="pagination-link">{{$i}}</a>
+                            {{end}}
+                        {{end}}
+                        
+                        {{if lt .page .totalPages}}
+                            <a href="?page={{addf .page 1}}" class="pagination-link">
+                                下一页 <i class="fas fa-chevron-right"></i>
+                            </a>
+                        {{end}}
+                    </div>
+                </div>
+                {{end}}
+            </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Scripts -->
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Load saved theme
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        });
+        
+        // Logout function
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                fetch('/api/logout', { method: 'POST' })
+                    .then(() => window.location.href = '/')
+                    .catch(err => console.error('Logout failed:', err));
+            }
+        }
+        
+        let generatedCodes = [];
+        
+        // Generate form handler
+        document.getElementById('generateForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = {
+                prefix: formData.get('prefix'),
+                count: parseInt(formData.get('count')),
+                amount_cents: Math.round(parseFloat(formData.get('amount')) * 100),
+                max_uses: parseInt(formData.get('max_uses')),
+                max_uses_per_user: parseInt(formData.get('max_uses_per_user')),
+                expires_in: parseInt(formData.get('expires_in'))
+            };
+            
+            try {
+                const response = await fetch('/admin/recharge-cards/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    generatedCodes = result.codes;
+                    showDownloadSection();
+                    alert('成功生成 ' + result.codes.length + ' 个充值卡！');
+                } else {
+                    alert('生成失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('生成失败: ' + error.message);
+            }
+        });
+        
+        function showDownloadSection() {
+            const downloadSection = document.getElementById('downloadCodes');
+            const textarea = document.getElementById('codesTextarea');
+            
+            let codesText = '';
+            generatedCodes.forEach(card => {
+                codesText += `${card.code} - 金额: {{currency}}${(card.amount_cents / 100).toFixed(2)} - 最大使用次数: ${card.max_uses}\n`;
+            });
+            
+            textarea.value = codesText;
+            downloadSection.style.display = 'block';
+        }
+        
+        function downloadTxt() {
+            let content = '充值卡列表\n';
+            content += '生成时间: ' + new Date().toLocaleString() + '\n\n';
+            
+            generatedCodes.forEach(card => {
+                content += `充值码: ${card.code}\n`;
+                content += `金额: {{currency}}${(card.amount_cents / 100).toFixed(2)}\n`;
+                content += `最大使用次数: ${card.max_uses}\n`;
+                content += `单用户限制: ${card.max_uses_per_user}\n`;
+                content += `过期时间: ${new Date(card.expires_at).toLocaleString()}\n`;
+                content += '-'.repeat(50) + '\n\n';
+            });
+            
+            downloadFile(content, 'recharge_cards_' + Date.now() + '.txt', 'text/plain');
+        }
+        
+        function downloadCsv() {
+            let content = '充值码,金额,最大使用次数,单用户限制,过期时间\n';
+            
+            generatedCodes.forEach(card => {
+                content += `${card.code},${(card.amount_cents / 100).toFixed(2)},${card.max_uses},${card.max_uses_per_user},${new Date(card.expires_at).toLocaleString()}\n`;
+            });
+            
+            downloadFile(content, 'recharge_cards_' + Date.now() + '.csv', 'text/csv');
+        }
+        
+        function downloadFile(content, filename, contentType) {
+            const blob = new Blob([content], { type: contentType });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+        
+        function copyCode(code) {
+            navigator.clipboard.writeText(code).then(() => {
+                alert('充值码已复制: ' + code);
+            }).catch(err => {
+                console.error('复制失败:', err);
+            });
+        }
+        
+        function copyAllCodes() {
+            const codes = generatedCodes.map(card => card.code).join('\n');
+            navigator.clipboard.writeText(codes).then(() => {
+                alert('所有充值码已复制到剪贴板');
+            }).catch(err => {
+                console.error('复制失败:', err);
+            });
+        }
+        
+        async function deleteCard(id) {
+            if (!confirm('确定要删除这个充值卡吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/admin/recharge-cards/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('删除成功');
+                    window.location.reload();
+                } else {
+                    alert('删除失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('删除失败: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

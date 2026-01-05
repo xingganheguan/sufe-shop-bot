@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>商品管理测试</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { margin: 5px; padding: 5px 10px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 50px auto; padding: 20px; width: 400px; }
+        input, textarea { width: 100%; margin: 5px 0; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>商品管理测试页面</h1>
+    
+    <p><a href="/admin/">返回仪表盘</a></p>
+    
+    <button onclick="loadProducts()">刷新产品列表</button>
+    <button onclick="showAddForm()">添加产品</button>
+    
+    <div id="debug"></div>
+    
+    <table id="productTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>名称</th>
+                <th>描述</th>
+                <th>价格</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="productList"></tbody>
+    </table>
+    
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">添加产品</h2>
+            <input type="hidden" id="productId">
+            <div>
+                <label>名称:</label>
+                <input type="text" id="productName">
+            </div>
+            <div>
+                <label>描述:</label>
+                <textarea id="productDesc"></textarea>
+            </div>
+            <div>
+                <label>价格(元):</label>
+                <input type="number" id="productPrice" step="0.01">
+            </div>
+            <button onclick="saveProduct()">保存</button>
+            <button onclick="closeModal()">取消</button>
+        </div>
+    </div>
+    
+    <script>
+        function loadProducts() {
+            document.getElementById('debug').innerHTML = '正在加载产品...';
+            
+            fetch('/admin/products', {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('加载失败: ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('产品数据:', data);
+                document.getElementById('debug').innerHTML = '加载成功，共 ' + data.length + ' 个产品';
+                
+                const tbody = document.getElementById('productList');
+                tbody.innerHTML = '';
+                
+                data.forEach(product => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${product.ID}</td>
+                        <td>${product.Name}</td>
+                        <td>${product.Description || ''}</td>
+                        <td>¥${(product.PriceCents / 100).toFixed(2)}</td>
+                        <td>${product.IsActive ? '启用' : '禁用'}</td>
+                        <td>
+                            <button onclick="editProduct(${product.ID}, '${product.Name}', '${product.Description || ''}', ${product.PriceCents})">编辑</button>
+                            <button onclick="deleteProduct(${product.ID})">删除</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            })
+            .catch(error => {
+                console.error('错误:', error);
+                document.getElementById('debug').innerHTML = '错误: ' + error.message;
+            });
+        }
+        
+        function showAddForm() {
+            document.getElementById('modalTitle').textContent = '添加产品';
+            document.getElementById('productId').value = '';
+            document.getElementById('productName').value = '';
+            document.getElementById('productDesc').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('modal').style.display = 'block';
+        }
+        
+        function editProduct(id, name, desc, priceCents) {
+            document.getElementById('modalTitle').textContent = '编辑产品';
+            document.getElementById('productId').value = id;
+            document.getElementById('productName').value = name;
+            document.getElementById('productDesc').value = desc;
+            document.getElementById('productPrice').value = (priceCents / 100).toFixed(2);
+            document.getElementById('modal').style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+        
+        function saveProduct() {
+            const id = document.getElementById('productId').value;
+            const data = {
+                name: document.getElementById('productName').value,
+                description: document.getElementById('productDesc').value,
+                price_cents: Math.round(parseFloat(document.getElementById('productPrice').value) * 100)
+            };
+            
+            console.log('保存产品:', data);
+            
+            const url = id ? `/admin/products/${id}` : '/admin/products';
+            const method = id ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('保存失败');
+                closeModal();
+                loadProducts();
+            })
+            .catch(error => {
+                alert('保存失败: ' + error.message);
+            });
+        }
+        
+        function deleteProduct(id) {
+            if (!confirm('确定删除?')) return;
+            
+            fetch(`/admin/products/${id}`, { method: 'DELETE' })
+                .then(response => {
+                    if (!response.ok) throw new Error('删除失败');
+                    loadProducts();
+                })
+                .catch(error => alert('删除失败: ' + error.message));
+        }
+        
+        // 页面加载时自动加载产品
+        loadProducts();
+    </script>
+</body>
+</html>
