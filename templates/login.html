@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录 - 商城机器人管理中心</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: #f5f7fb;
+      color: #1f2937;
+      display: flex;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.08);
+      padding: 28px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      text-align: center;
+    }
+    .subtitle {
+      text-align: center;
+      color: #6b7280;
+      margin-bottom: 24px;
+    }
+    .form-group { margin-bottom: 16px; }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      height: 44px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 0 12px;
+      font-size: 15px;
+      outline: none;
+    }
+    input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+    button {
+      width: 100%;
+      height: 44px;
+      border: 0;
+      border-radius: 10px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: .7;
+      cursor: not-allowed;
+    }
+    .error {
+      display: none;
+      margin-top: 12px;
+      color: #dc2626;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    .footer {
+      margin-top: 16px;
+      color: #6b7280;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 12px;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>商城机器人管理中心</h1>
+    <div class="subtitle">
+      请输入管理员令牌登录
+      {{ if .totp_enabled }}<span class="badge">2FA 已启用</span>{{ end }}
+    </div>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="token">管理员令牌</label>
+        <input
+          type="password"
+          id="token"
+          name="token"
+          required
+          autofocus
+          autocomplete="current-password"
+          placeholder="请输入管理员令牌"
+        />
+      </div>
+
+      {{ if .totp_enabled }}
+      <div class="form-group">
+        <label for="otp">2FA 验证码</label>
+        <input
+          type="text"
+          id="otp"
+          name="otp"
+          inputmode="numeric"
+          pattern="[0-9]{6}"
+          maxlength="6"
+          required
+          autocomplete="one-time-code"
+          placeholder="请输入 6 位动态验证码"
+        />
+      </div>
+      {{ end }}
+
+      <button type="submit">登 录</button>
+      <div class="error" id="error">管理员令牌或 2FA 验证码错误，请重新输入</div>
+    </form>
+
+    <div class="footer">
+      管理员令牌请查看服务器 .env 文件中的 <code>ADMIN_TOKEN</code> 配置。<br />
+      {{ if .totp_enabled }}
+      2FA 密钥请从宿主机挂载文件 <code>ADMIN_TOTP_SECRET_FILE</code> 读取。
+      {{ else }}
+      当前未启用 2FA。
+      {{ end }}
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const token = document.getElementById('token').value.trim();
+      const otpInput = document.getElementById('otp');
+      const otp = otpInput ? otpInput.value.trim() : '';
+      const errorDiv = document.getElementById('error');
+      const button = e.target.querySelector('button[type="submit"]');
+
+      errorDiv.style.display = 'none';
+      button.disabled = true;
+      button.textContent = '登录中...';
+
+      try {
+        const resp = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            token: token,
+            otp: otp
+          })
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.success) {
+          throw new Error('login failed');
+        }
+
+        if (data.token) {
+          localStorage.setItem('adminToken', data.token);
+        }
+        if (data.refresh_token) {
+          localStorage.setItem('refreshToken', data.refresh_token);
+        }
+
+        window.location.href = '/admin/';
+      } catch (err) {
+        errorDiv.style.display = 'block';
+        if (otpInput) otpInput.value = '';
+      } finally {
+        button.disabled = false;
+        button.textContent = '登 录';
+      }
+    });
+  </script>
+</body>
+</html>
