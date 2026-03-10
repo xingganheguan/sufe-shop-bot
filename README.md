@@ -1,3 +1,6 @@
+
+1.后台增加了2FA验证
+---
 # Telegram Shop Bot - 电报商城机器人
 
 [![Go Version](https://img.shields.io/badge/Go-1.22-blue.svg)](https://golang.org/doc/go1.22)
