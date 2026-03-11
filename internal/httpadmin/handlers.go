@@ -854,34 +854,34 @@ func (s *Server) handleSettingsUpdate(c *gin.Context) {
 		}
 	}
 
-	// Handle order settings
-	for key, value := range req {
+// Handle order settings
+for key, value := range req {
+	switch key {
+	case "order_expire_minutes", "order_cleanup_days", "enable_auto_expire", "enable_auto_cleanup":
+		valueStr := fmt.Sprintf("%v", value)
+		var description, settingType string
+
 		switch key {
-		case "order_expire_hours", "order_cleanup_days", "enable_auto_expire", "enable_auto_cleanup":
-			valueStr := fmt.Sprintf("%v", value)
-			var description, settingType string
+		case "order_expire_minutes":
+			description = "订单过期时间（分钟）"
+			settingType = "int"
+		case "order_cleanup_days":
+			description = "清理过期订单的天数"
+			settingType = "int"
+		case "enable_auto_expire":
+			description = "启用订单自动过期"
+			settingType = "bool"
+		case "enable_auto_cleanup":
+			description = "启用过期订单自动清理"
+			settingType = "bool"
+		}
 
-			switch key {
-			case "order_expire_hours":
-				description = "订单过期时间（小时）"
-				settingType = "int"
-			case "order_cleanup_days":
-				description = "清理过期订单的天数"
-				settingType = "int"
-			case "enable_auto_expire":
-				description = "启用订单自动过期"
-				settingType = "bool"
-			case "enable_auto_cleanup":
-				description = "启用过期订单自动清理"
-				settingType = "bool"
-			}
-
-			if err := store.SetSetting(s.db, key, valueStr, description, settingType); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "保存设置失败"})
-				return
-			}
+		if err := store.SetSetting(s.db, key, valueStr, description, settingType); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "保存设置失败"})
+			return
 		}
 	}
+}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "设置已更新"})
 }
