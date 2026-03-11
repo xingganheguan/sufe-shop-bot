@@ -11,6 +11,25 @@ import (
 	"shop-bot/internal/store"
 )
 
+func (s *Server) loadSystemSettings(keys ...string) map[string]string {
+	result := make(map[string]string)
+	if len(keys) == 0 {
+		return result
+	}
+	type systemSettingRow struct {
+		Key   string `gorm:"column:key"`
+		Value string `gorm:"column:value"`
+	}
+	var rows []systemSettingRow
+	if err := s.db.Table("system_settings").Select("key, value").Where("key IN ?", keys).Find(&rows).Error; err != nil {
+		return result
+	}
+	for _, row := range rows {
+		result[strings.ToLower(row.Key)] = row.Value
+	}
+	return result
+}
+
 // handleSettings shows the settings page
 func (s *Server) handleSettings(c *gin.Context) {
 	// Get currency settings
@@ -38,12 +57,34 @@ func (s *Server) handleSettings(c *gin.Context) {
 		"admin_telegram_ids": s.config.AdminTelegramIDs,
 	}
 
-	// Get payment settings from config
+	// Get payment settings from database first, then fall back to current config
+	systemSettings := s.loadSystemSettings("epay_pid", "epay_key", "epay_gateway", "base_url")
+
+	epayPID := s.config.EpayPID
+	if value := systemSettings["epay_pid"]; value != "" {
+		epayPID = value
+	}
+
+	epayGateway := s.config.EpayGateway
+	if value := systemSettings["epay_gateway"]; value != "" {
+		epayGateway = value
+	}
+
+	baseURL := s.config.BaseURL
+	if value := systemSettings["base_url"]; value != "" {
+		baseURL = value
+	}
+
+	epayKeyMasked := strings.Repeat("*", 20)
+	if value := systemSettings["epay_key"]; value == "" && s.config.EpayKey == "" {
+		epayKeyMasked = ""
+	}
+
 	paymentSettings := gin.H{
-		"epay_pid":     s.config.EpayPID,
-		"epay_key":     strings.Repeat("*", 20), // Mask the key
-		"epay_gateway": s.config.EpayGateway,
-		"base_url":     s.config.BaseURL,
+		"epay_pid":     epayPID,
+		"epay_key":     epayKeyMasked,
+		"epay_gateway": epayGateway,
+		"base_url":     baseURL,
 	}
 
 	// Get currency list
@@ -98,14 +139,15 @@ func (s *Server) handleSaveSettings(c *gin.Context) {
 		var description, settingType string
 
 		switch key {
-		case "order_expire_hours":
-			description = "订单过期时间（小时）"
+		case "order_expire_minutes":
+			description = "订单过期时间（分钟）"
 			settingType = "int"
 			// Validate
-			if hours, err := strconv.Atoi(value); err != nil || hours < 1 || hours > 168 {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid expire hours"})
+			if minutes, err := strconv.Atoi(value); err != nil || minutes < 10 || minutes > 10080 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid expire minutes"})
 				return
 			}
+
 		case "order_cleanup_days":
 			description = "清理过期订单的天数"
 			settingType = "int"
@@ -114,6 +156,7 @@ func (s *Server) handleSaveSettings(c *gin.Context) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cleanup days"})
 				return
 			}
+
 		case "enable_auto_expire":
 			description = "启用订单自动过期"
 			settingType = "bool"
@@ -121,6 +164,7 @@ func (s *Server) handleSaveSettings(c *gin.Context) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid boolean value"})
 				return
 			}
+
 		case "enable_auto_cleanup":
 			description = "启用过期订单自动清理"
 			settingType = "bool"
@@ -128,6 +172,7 @@ func (s *Server) handleSaveSettings(c *gin.Context) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid boolean value"})
 				return
 			}
+
 		default:
 			continue // Skip unknown settings
 		}
@@ -140,6 +185,7 @@ func (s *Server) handleSaveSettings(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Settings saved successfully"})
 }
+
 
 // handleExpireOrders manually triggers order expiration
 func (s *Server) handleExpireOrders(c *gin.Context) {
