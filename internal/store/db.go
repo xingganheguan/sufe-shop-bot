@@ -40,7 +40,7 @@ func InitDB(dsn string) (*gorm.DB, error) {
 
 // AutoMigrate creates/updates database schema
 func AutoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&User{},
 		&Product{},
 		&Code{},
@@ -59,7 +59,16 @@ func AutoMigrate(db *gorm.DB) error {
 		&Ticket{}, // Ticket must be created before TicketMessage
 		&TicketMessage{},
 		&TicketTemplate{},
-	)
+	); err != nil {
+		return err
+	}
+
+	// 同一个用户对同一个商品只能存在一个未付款订单
+	return db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_user_product_pending_unique
+		ON orders (user_id, product_id)
+		WHERE status = 'pending' AND product_id IS NOT NULL;
+	`).Error
 }
 
 // IsPostgres checks if the database is PostgreSQL
