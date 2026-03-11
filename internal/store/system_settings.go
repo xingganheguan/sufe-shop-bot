@@ -6,10 +6,10 @@ import (
 
 // Settings keys
 const (
-	SettingOrderExpireHours  = "order_expire_hours"
-	SettingOrderCleanupDays  = "order_cleanup_days"
-	SettingEnableAutoExpire  = "enable_auto_expire"
-	SettingEnableAutoCleanup = "enable_auto_cleanup"
+	SettingOrderExpireMinutes = "order_expire_minutes"
+	SettingOrderCleanupDays   = "order_cleanup_days"
+	SettingEnableAutoExpire   = "enable_auto_expire"
+	SettingEnableAutoCleanup  = "enable_auto_cleanup"
 )
 
 // GetSetting retrieves a setting by key
@@ -18,10 +18,18 @@ func GetSetting(db *gorm.DB, key string) (string, error) {
 	err := db.Where("key = ?", key).First(&setting).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
+			// Backward compatibility: read old key if new key not found
+			if key == SettingOrderExpireMinutes {
+				var oldSetting SystemSetting
+				if oldErr := db.Where("key = ?", "order_expire_hours").First(&oldSetting).Error; oldErr == nil {
+					return oldSetting.Value, nil
+				}
+			}
+
 			// Return default values
 			switch key {
-			case SettingOrderExpireHours:
-				return "24", nil
+			case SettingOrderExpireMinutes:
+				return "10", nil
 			case SettingOrderCleanupDays:
 				return "7", nil
 			case SettingEnableAutoExpire:
@@ -70,6 +78,22 @@ func GetAllSettings(db *gorm.DB) ([]SystemSetting, error) {
 
 // InitializeSettings creates default settings if they don't exist
 func InitializeSettings(db *gorm.DB) error {
+	// Migrate old key to new key if needed
+	var oldSetting SystemSetting
+	if err := db.Where("key = ?", "order_expire_hours").First(&oldSetting).Error; err == nil {
+		var newSetting SystemSetting
+		if err := db.Where("key = ?", SettingOrderExpireMinutes).First(&newSetting).Error; err == gorm.ErrRecordNotFound {
+			if err := db.Create(&SystemSetting{
+				Key:         SettingOrderExpireMinutes,
+				Value:       oldSetting.Value,
+				Description: "订单过期时间（分钟）",
+				Type:        "int",
+			}).Error; err != nil {
+				return err
+			}
+		}
+	}
+
 	defaultSettings := []struct {
 		Key         string
 		Value       string
@@ -77,9 +101,9 @@ func InitializeSettings(db *gorm.DB) error {
 		Type        string
 	}{
 		{
-			Key:         SettingOrderExpireHours,
-			Value:       "24",
-			Description: "订单过期时间（小时）",
+			Key:         SettingOrderExpireMinutes,
+			Value:       "10",
+			Description: "订单过期时间（分钟）",
 			Type:        "int",
 		},
 		{
@@ -133,8 +157,8 @@ func GetSettingsMap(db *gorm.DB) (map[string]string, error) {
 	}
 
 	// Add defaults for missing settings
-	if _, ok := result[SettingOrderExpireHours]; !ok {
-		result[SettingOrderExpireHours] = "24"
+	if _, ok := result[SettingOrderExpireMinutes]; !ok {
+		result[SettingOrderExpireMinutes] = "10"
 	}
 	if _, ok := result[SettingOrderCleanupDays]; !ok {
 		result[SettingOrderCleanupDays] = "7"
