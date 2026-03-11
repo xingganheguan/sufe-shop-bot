@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	ErrNoStock     = errors.New("no available codes in stock")
-	ErrClaimFailed = errors.New("failed to claim code")
+	ErrNoStock      = errors.New("no available codes in stock")
+	ErrClaimFailed  = errors.New("failed to claim code")
+	ErrOrderPending = errors.New("pending order already exists")
 )
 
 // CountAvailableCodes returns the number of unsold codes for a product
@@ -169,8 +170,29 @@ func GetOrCreateUserWithStatus(db *gorm.DB, tgUserID int64, username string) (*U
 	return &user, true, nil
 }
 
+// GetPendingOrderByUserAndProduct returns the latest pending order for the same user and product
+func GetPendingOrderByUserAndProduct(db *gorm.DB, userID, productID uint) (*Order, error) {
+	var order Order
+	err := db.Where("user_id = ? AND product_id = ? AND status = ?", userID, productID, "pending").
+		Order("id DESC").
+		First(&order).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &order, nil
+}
+
 // CreateOrder creates a new order
 func CreateOrder(db *gorm.DB, userID, productID uint, amountCents int) (*Order, error) {
+	if existing, err := GetPendingOrderByUserAndProduct(db, userID, productID); err != nil {
+		return nil, err
+	} else if existing != nil {
+		return existing, nil
+	}
+
 	// Generate unique out_trade_no at creation time
 	tempID := fmt.Sprintf("%d-%d-%d", userID, productID, time.Now().UnixNano())
 
@@ -195,6 +217,13 @@ func CreateOrderWithBalance(db *gorm.DB, userID, productID uint, amountCents int
 	var order *Order
 
 	err := db.Transaction(func(tx *gorm.DB) error {
+		if existing, err := GetPendingOrderByUserAndProduct(tx, userID, productID); err != nil {
+			return err
+		} else if existing != nil {
+			order = existing
+			return nil
+		}
+
 		// Get user balance
 		var user User
 		if err := tx.First(&user, userID).Error; err != nil {
