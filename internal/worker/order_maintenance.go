@@ -34,7 +34,8 @@ func (w *OrderMaintenanceWorker) Start(ctx context.Context) {
 	w.runCleanup()
 
 	// Set up tickers
-	w.expireTicker = time.NewTicker(1 * time.Hour)   // Check every hour
+	// w.expireTicker = time.NewTicker(1 * time.Hour)   // Check every hour
+	w.expireTicker = time.NewTicker(5 * time.Minute)   // 原来是 1 * time.Hour
 	w.cleanupTicker = time.NewTicker(24 * time.Hour) // Clean up daily
 
 	go func() {
